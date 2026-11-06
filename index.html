@@ -84,6 +84,29 @@
   #room-show { margin:12px 0; padding:12px; border-radius:12px; background:rgba(92,200,255,.08); border:1px dashed rgba(92,200,255,.4); }
   #room-code { font-size:32px; font-weight:900; letter-spacing:8px; color:#7fe3ff; margin:2px 0 8px; }
   #net-status { font-size:13px; min-height:20px; margin-top:8px; line-height:1.6; color:#9fe6ff; }
+  #keys-box { width:min(400px,92vw); padding:22px; border-radius:20px; text-align:center;
+    background:linear-gradient(180deg, rgba(12,26,44,.96), rgba(6,12,22,.98));
+    border:1px solid rgba(120,200,255,.32); box-shadow:0 24px 70px rgba(0,0,0,.65); }
+  #keys-box h2 { font-size:20px; color:#dff2ff; margin:0 0 4px; letter-spacing:2px; }
+  #keys-box .sub { font-size:12px; color:#87a9c8; margin-bottom:12px; }
+  .key-row { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; margin:6px 0;
+    background:rgba(255,255,255,.06); border:1px solid rgba(120,200,255,.25); border-radius:10px; font-size:14px; color:#dff2ff; }
+  .key-row .kval { cursor:pointer; padding:4px 12px; border-radius:8px; background:rgba(92,200,255,.15);
+    border:1px solid rgba(92,200,255,.4); font-weight:700; min-width:96px; }
+  .key-row .kval.capturing { background:rgba(255,220,80,.25); border-color:#ffe24a; animation:kbdblink .8s infinite; }
+  @keyframes kbdblink { 50%{opacity:.45;} }
+  .opt-grp { display:flex; gap:6px; }
+  .opt { padding:5px 12px; border-radius:8px; background:rgba(255,255,255,.08); color:#dff2ff;
+    border:1px solid rgba(120,200,255,.3); font-size:13px; cursor:pointer; font-weight:700; }
+  .opt.on { background:rgba(92,200,255,.35); border-color:#5cc8ff; }
+  /* 左手习惯：摇杆和按钮位置互换 */
+  body.lefty #joy-zone { left:auto; right:0; }
+  body.lefty #btn-zone { right:auto; left:0; }
+  /* 摇杆尺寸 */
+  body.joy-s #joy-zone { width:34vw !important; height:34vw !important; max-width:200px !important; max-height:200px !important; }
+  body.joy-l #joy-zone { width:52vw !important; height:52vw !important; max-width:320px !important; max-height:320px !important; }
+  body.tbtn-s { --tbtn: 54px; --tbtn-big: 66px; }
+  body.tbtn-l { --tbtn: 84px; --tbtn-big: 102px; }
   #net-badge { top:176px; right:16px; left:auto; font-size:12px; font-weight:700; color:#9fe6ff;
     background:rgba(10,20,34,.82); border:1px solid rgba(92,200,255,.35); padding:6px 10px; border-radius:10px; display:none; }
   .touch-mode #net-badge { top:150px; right:10px; }
@@ -247,6 +270,31 @@
     background:rgba(10,13,20,.88); border:1px solid rgba(255,255,255,.28); color:#eaf2ff; border-radius:12px;
     padding:9px 16px; font-size:13px; font-weight:700; box-shadow:0 4px 14px rgba(0,0,0,.45); }
   .touch-mode #mode-switch { display:block; }
+
+  /* ===== 触屏响应式（按机型自适应，避开 iPhone 安全区） ===== */
+  :root { --tbtn: clamp(58px, 17.5vw, 80px); --tbtn-big: clamp(70px, 21vw, 96px); }
+  #joy-zone { left: max(0px, env(safe-area-inset-left, 0px)); }
+  #btn-zone {
+    right: max(0px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    grid-template-columns: repeat(3, var(--tbtn));
+    gap: calc(var(--tbtn) * 0.18);
+  }
+  .tbtn { width: var(--tbtn); height: var(--tbtn); font-size: calc(var(--tbtn) * 0.18); }
+  .tbtn .ic { font-size: calc(var(--tbtn) * 0.30); }
+  #t-shoot { width: var(--tbtn-big); height: var(--tbtn-big); font-size: calc(var(--tbtn-big) * 0.20); }
+  #t-shoot .ic { font-size: calc(var(--tbtn-big) * 0.30); }
+  /* 矮屏（横屏手机）：摇杆和按钮整体缩小，避免挡球场 */
+  @media (pointer:coarse) and (max-height: 480px) {
+    :root { --tbtn: 54px; --tbtn-big: 66px; }
+    #joy-zone { width: 38vw !important; height: 38vw !important; max-width: 200px !important; max-height: 200px !important; }
+    #joy-base { width: 130px; height: 130px; }
+    #joy-knob { width: 60px; height: 60px; margin:-30px 0 0 -30px; }
+    #minimap { width: 130px !important; height: 88px !important; }
+    #active-info, #stats { top: 110px !important; }
+    #btn-cam { top: 150px !important; } #btn-mute { top: 195px !important; }
+    #btn-night { top: 240px !important; } #btn-restart { top: 285px !important; }
+  }
   .touch-mode #btn-cam { top:188px; }
   .touch-mode #btn-mute { top:248px; }
   .touch-mode #btn-night { top:308px; }
@@ -385,6 +433,7 @@
   </div>
   <div class="online-row">
     <button id="btn-online" class="diff-btn" onclick="openOnline()">🌐 联机对战</button>
+    <button class="diff-btn" onclick="openKeys()">⌨️ 键位设置</button>
   </div>
   <button id="btn-start" class="btn-primary" onclick="startGame()">⚽ 开 始 比 赛</button>
   <div id="controls-info">
@@ -417,6 +466,36 @@
     <div class="on-row" style="margin-top:14px">
       <button class="on-btn" onclick="closeOnline()">返回</button>
       <button class="on-btn" onclick="netExitRoom()">退出联机</button>
+    </div>
+  </div>
+</div>
+
+<!-- 自定义键位面板 -->
+<div id="keys-panel" class="overlay hidden">
+  <div id="keys-box">
+    <h2>🎮 操作设置</h2>
+    <div class="sub" id="keys-sub">触屏布局 / 按键自定义</div>
+    <div id="touch-rows" style="display:none">
+      <div class="key-row"><span>按钮大小</span><span class="opt-grp" id="opt-btnsize">
+        <button class="opt" data-v="s">小</button><button class="opt" data-v="m">中</button><button class="opt" data-v="l">大</button></span></div>
+      <div class="key-row"><span>摇杆大小</span><span class="opt-grp" id="opt-joysize">
+        <button class="opt" data-v="s">小</button><button class="opt" data-v="m">中</button><button class="opt" data-v="l">大</button></span></div>
+      <div class="key-row"><span>操作布局</span><span class="opt-grp" id="opt-hand">
+        <button class="opt" data-v="r">右手·摇杆左</button><button class="opt" data-v="l">左手·摇杆右</button></span></div>
+      <div class="key-row"><span>按钮位置</span><span class="opt-grp"><button class="opt" id="opt-drag">✋ 拖动按钮到任意位置</button></span></div>
+    </div>
+    <div id="perf-rows">
+      <div class="key-row"><span>帧率上限</span><span class="opt-grp" id="opt-fps">
+        <button class="opt" data-v="30">30</button><button class="opt" data-v="60">60</button><button class="opt" data-v="120">120</button><button class="opt" data-v="0">VSync</button></span></div>
+      <div class="key-row"><span>渲染清晰度</span><span class="opt-grp" id="opt-pr">
+        <button class="opt" data-v="0.5">省电</button><button class="opt" data-v="1">流畅</button><button class="opt" data-v="2">高清</button></span></div>
+      <div class="key-row"><span>阴影</span><span class="opt-grp" id="opt-shadow">
+        <button class="opt" data-v="1">开</button><button class="opt" data-v="0">关(更省电)</button></span></div>
+    </div>
+    <div id="key-rows"></div>
+    <div class="on-row" style="margin-top:14px">
+      <button class="on-btn" onclick="keysReset()">恢复默认</button>
+      <button class="on-btn primary" onclick="closeKeys()">完成</button>
     </div>
   </div>
 </div>
@@ -711,7 +790,8 @@ function buildStadium(){
   const postMat = new THREE.MeshLambertMaterial({color:0xeeeeee});
   const postGeo = new THREE.CylinderGeometry(0.09,0.09,GOAL_H);
   for(const s of [-1,1]){
-    const gx = s*(HALF_W + GOAL_D/2);
+    const gx = s*HALF_W;                       // 门柱在球门线上
+    const bx = s*(HALF_W + GOAL_D);            // 网底在门后
     [-GOAL_W/2, GOAL_W/2].forEach(z=>{
       const p = new THREE.Mesh(postGeo, postMat); p.position.set(gx, GOAL_H/2, z); p.castShadow=true; scene.add(p);
     });
@@ -719,14 +799,14 @@ function buildStadium(){
     bar.rotation.z = Math.PI/2; bar.position.set(gx, GOAL_H, 0); bar.castShadow=true; scene.add(bar);
     // 底网
     const netB = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_W, GOAL_H), netMat);
-    netB.position.set(gx, GOAL_H/2, 0); netB.rotation.y = s>0? -Math.PI/2 : Math.PI/2; scene.add(netB);
+    netB.position.set(bx, GOAL_H/2, 0); netB.rotation.y = s>0? -Math.PI/2 : Math.PI/2; scene.add(netB);
     // 顶网
     const netT = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_W, GOAL_D), netMat);
-    netT.position.set(gx, GOAL_H, 0); netT.rotation.x = Math.PI/2; scene.add(netT);
-    // 侧网
+    netT.position.set((gx+bx)/2, GOAL_H, 0); netT.rotation.x = Math.PI/2; scene.add(netT);
+    // 侧网（从门柱斜/直连到网底）
     [-GOAL_W/2, GOAL_W/2].forEach(z=>{
       const netS = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_D, GOAL_H), netMat);
-      netS.position.set(gx, GOAL_H/2, z);
+      netS.position.set((gx+bx)/2, GOAL_H/2, z);
       if(z<0) netS.rotation.y = Math.PI/2; else netS.rotation.y = -Math.PI/2;
       scene.add(netS);
     });
@@ -2328,8 +2408,23 @@ function updateCamera(dt){
 // ---------------- 主循环 ----------------
 let last = performance.now();
 let __idleT = 0;
+var SET = { fps:60, pr:1.0, shadow:1 };
+try{ var _s = JSON.parse(localStorage.getItem('zhuj_perf_v1')||'null'); if(_s) Object.assign(SET,_s); }catch(_){}
+function applyPerf(){
+  try{ localStorage.setItem('zhuj_perf_v1', JSON.stringify(SET)); }catch(_){}
+  renderer.setPixelRatio(SET.pr);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if(typeof sun !== 'undefined') sun.castShadow = !!SET.shadow;
+}
+applyPerf();
 function animate(now){
   requestAnimationFrame(animate);
+  // 帧率上限（0 = 跟随屏幕 VSync，不限制）
+  if(SET.fps > 0){
+    var _minDelta = 1000/SET.fps - 1;
+    if(now - animate._last < _minDelta) return;
+  }
+  animate._last = now;
   const dt = Math.min(0.033, Math.max(0.001, (now-last)/1000));
   last = now;
   // 菜单 / 结算画面降频渲染（比赛、开球、回放全速，手感不受影响）
@@ -2697,5 +2792,146 @@ window.addEventListener('load', ()=>{
 })();
 </script>
 <script src="js/online.js"></script>
+<script>
+// ---------------- 自定义键位：只在输入层映射，不改游戏逻辑 ----------------
+(function(){
+  var DEFAULTS = { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', sprint:'ShiftLeft',
+                   shoot:'Space', pass:'KeyK', switch:'Tab', camera:'KeyC', pause:'KeyP' };
+  var NAMES = { up:'上移', down:'下移', left:'左移', right:'右移', sprint:'加速', shoot:'射门',
+                pass:'传球', switch:'切换球员', camera:'切换镜头', pause:'暂停' };
+  var MOVE  = { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', sprint:'ShiftLeft' };
+  var B = Object.assign({}, DEFAULTS);
+  try{ var sv = JSON.parse(localStorage.getItem('zhuj_bind_v1')||'null'); if(sv) Object.assign(B, sv); }catch(_){}
+  function label(code){
+    if(!code) return '—';
+    return code.replace(/^Key/,'').replace(/^Digit/,'')
+      .replace('Space','空格').replace('ShiftLeft','左Shift').replace('ShiftRight','右Shift')
+      .replace('ArrowUp','↑').replace('ArrowDown','↓').replace('ArrowLeft','←').replace('ArrowRight','→')
+      .replace('ControlLeft','Ctrl').replace('ControlRight','Ctrl').replace('Enter','回车').replace('Escape','Esc');
+  }
+  function actionOf(code){ for(var k in B){ if(B[k]===code) return k; } return null; }
+  window.addEventListener('keydown', function(e){
+    var a = actionOf(e.code); if(!a) return;
+    if(MOVE[a]){ keys[MOVE[a]] = true; return; }
+    if(a==='shoot'  && B.shoot!==e.code  && G.state==='play' && !G.paused) userShoot();
+    else if(a==='pass'    && B.pass!==e.code    && G.state==='play' && !G.paused) userPass();
+    else if(a==='switch'  && B.switch!==e.code   && G.state==='play' && !G.paused) switchPlayer();
+    else if(a==='camera'  && B.camera!==e.code) cycleCamera();
+    else if(a==='pause'   && B.pause!==e.code)  togglePause();
+  });
+  window.addEventListener('keyup', function(e){
+    var a = actionOf(e.code);
+    if(a && MOVE[a]) keys[MOVE[a]] = false;
+  });
+  var capturing = null;
+  function save(){ try{ localStorage.setItem('zhuj_bind_v1', JSON.stringify(B)); }catch(_){} }
+  // ---- 触屏布局偏好 ----
+  var TP = { btnsize:'m', joysize:'m', hand:'r' };
+  try{ var ts = JSON.parse(localStorage.getItem('zhuj_touch_v1')||'null'); if(ts) Object.assign(TP, ts); }catch(_){}
+  function applyTouchPref(){
+    document.body.classList.remove('tbtn-s','tbtn-l','joy-s','joy-l','lefty');
+    if(TP.btnsize==='s') document.body.classList.add('tbtn-s');
+    if(TP.btnsize==='l') document.body.classList.add('tbtn-l');
+    if(TP.joysize==='s') document.body.classList.add('joy-s');
+    if(TP.joysize==='l') document.body.classList.add('joy-l');
+    if(TP.hand==='l') document.body.classList.add('lefty');
+  }
+  function saveTP(){ try{ localStorage.setItem('zhuj_touch_v1', JSON.stringify(TP)); }catch(_){} applyTouchPref(); }
+  applyTouchPref();
+  function renderOpt(id, key){
+    var g = document.getElementById(id); if(!g) return;
+    var bs = g.querySelectorAll('.opt');
+    for(var i=0;i<bs.length;i++){
+      (function(btn){
+        var v = btn.getAttribute('data-v');
+        btn.classList.toggle('on', String(SET[key])===v || String(TP[key])===v);
+        btn.onclick = function(){
+          if(key in SET){ SET[key] = parseFloat(v); applyPerf(); renderAllOpts(); }
+          else { TP[key]=v; saveTP(); renderOpt(id,key); }
+        };
+      })(bs[i]);
+    }
+  }
+  function renderAllOpts(){
+    renderOpt('opt-btnsize','btnsize'); renderOpt('opt-joysize','joysize'); renderOpt('opt-hand','hand');
+    renderOpt('opt-fps','fps'); renderOpt('opt-pr','pr'); renderOpt('opt-shadow','shadow');
+  }
+  // ---- 触屏按钮拖动定位 ----
+  var dragEdit = false;
+  function loadBtnPos(){
+    var pos = {};
+    try{ pos = JSON.parse(localStorage.getItem('zhuj_btnpos_v1')||'{}'); }catch(_){}
+    Object.keys(pos).forEach(function(id){
+      var el = document.getElementById(id);
+      if(el){ el.style.left = pos[id].x; el.style.top = pos[id].y; el.style.right = 'auto'; el.style.bottom = 'auto'; }
+    });
+  }
+  function saveBtnPos(id, el){
+    var all = {};
+    try{ all = JSON.parse(localStorage.getItem('zhuj_btnpos_v1')||'{}'); }catch(_){}
+    all[id] = { x: el.style.left, y: el.style.top };
+    try{ localStorage.setItem('zhuj_btnpos_v1', JSON.stringify(all)); }catch(_){}
+  }
+  loadBtnPos();
+  function makeDraggable(id){
+    var el = document.getElementById(id); if(!el) return;
+    el.addEventListener('pointerdown', function(e){
+      if(!dragEdit) return;
+      e.preventDefault(); e.stopPropagation();
+      var r = el.getBoundingClientRect();
+      var offX = e.clientX - r.left, offY = e.clientY - r.top;
+      function mv(ev){
+        var x = ev.clientX - offX, y = ev.clientY - offY;
+        x = Math.max(0, Math.min(window.innerWidth - r.width, x));
+        y = Math.max(0, Math.min(window.innerHeight - r.height, y));
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        el.style.right = 'auto'; el.style.bottom = 'auto';
+      }
+      function up(){
+        window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+        saveBtnPos(id, el);
+      }
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    });
+  }
+  ['joy-zone','t-shoot','t-pass','t-switch','t-sprint','t-cam','t-pause'].forEach(makeDraggable);
+  function renderRows(){
+    var box = document.getElementById('key-rows'); if(!box) return;
+    box.innerHTML = '';
+    Object.keys(NAMES).forEach(function(a){
+      var row = document.createElement('div'); row.className = 'key-row';
+      var nm = document.createElement('span'); nm.textContent = NAMES[a];
+      var kv = document.createElement('span'); kv.className = 'kval' + (capturing===a ? ' capturing' : '');
+      kv.textContent = (capturing===a) ? '按任意键…' : label(B[a]);
+      kv.onclick = function(){ capturing = a; renderRows(); };
+      row.appendChild(nm); row.appendChild(kv); box.appendChild(row);
+    });
+  }
+  window.openKeys = function(){
+    var p = document.getElementById('keys-panel'); if(p) p.classList.remove('hidden');
+    var touch = document.body.classList.contains('touch-mode');
+    var tr = document.getElementById('touch-rows'); if(tr) tr.style.display = touch ? 'block' : 'none';
+    var sub = document.getElementById('keys-sub'); if(sub) sub.textContent = touch ? '触屏布局 / 按钮拖动 / 性能' : '键盘改键 / 帧率性能';
+    renderAllOpts();
+    var db = document.getElementById('opt-drag');
+    if(db){ db.classList.toggle('on', dragEdit); db.textContent = dragEdit ? '✅ 拖动模式开（点完完成）' : '✋ 拖动按钮到任意位置'; }
+    renderRows();
+  };
+  window.closeKeys = function(){ var p = document.getElementById('keys-panel'); if(p) p.classList.add('hidden'); capturing = null; };
+  var _db = document.getElementById('opt-drag');
+  if(_db) _db.onclick = function(){
+    dragEdit = !dragEdit;
+    _db.classList.toggle('on', dragEdit);
+    _db.textContent = dragEdit ? '✅ 拖动模式开（直接拖按钮/摇杆）' : '✋ 拖动按钮到任意位置';
+  };
+  window.keysReset = function(){ B = Object.assign({}, DEFAULTS); save(); TP = {btnsize:'m',joysize:'m',hand:'r'}; saveTP(); renderRows(); };
+  window.addEventListener('keydown', function(e){
+    if(!capturing) return;
+    e.preventDefault(); e.stopPropagation();
+    if(e.code === 'Escape'){ capturing = null; renderRows(); return; }
+    B[capturing] = e.code; capturing = null; save(); renderRows();
+  }, true);
+})();
+</script>
 </body>
 </html>

@@ -190,8 +190,9 @@
      - 直连建立失败/中途断开：自动继续用中继，玩家无感
      ============================================================ */
   var ICE = { iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: [ 'stun:stun.miwifi.com:3478', 'stun:stun.qq.com:3478' ] },
+    { urls: [ 'turn:openrelay.metered.ca:3478?transport=udp', 'turn:openrelay.metered.ca:3478?transport=tcp', 'turns:openrelay.metered.ca:443' ],
+      username: 'openrelayproject', credential: 'openrelayproject' }
   ] };
   function rtcOK(){ return typeof RTCPeerConnection === 'function'; }
   function p2pSend(data){
@@ -229,6 +230,7 @@
       return;
     }
     if(c0 === 'i'){ if(NET.role === 'host') hostOnInput(s.slice(1)); return; }
+    if(c0 === 'j'){ if(NET.role === 'host'){ var m2=null; try{ m2=JSON.parse(s.slice(1)); }catch(_){ return; } hostOnCtl(m2); } return; }
     if(c0 === 'p'){ if(s.length > 1) p2pSend('o' + s.slice(1)); return; }
     if(c0 === 'o'){ var n = +s.slice(1); if(n){ NET.rtt = Math.round(performance.now() - n); } return; }
   }
@@ -236,7 +238,7 @@
     return new Promise(function(res){
       if(pc.iceGatheringState === 'complete') return res();
       var done = false;
-      var t = setTimeout(function(){ if(!done){ done = true; res(); } }, ms || 2500);
+      var t = setTimeout(function(){ if(!done){ done = true; res(); } }, ms || 5000);
       pc.onicegatheringstatechange = function(){
         if(pc.iceGatheringState === 'complete' && !done){ done = true; clearTimeout(t); res(); }
       };
@@ -250,11 +252,19 @@
     NET.pc = pc;
     p2pBind(pc.createDataChannel('g', { ordered: false, maxRetransmits: 0 }));
     pc.oniceconnectionstatechange = function(){
-      if(pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected'){ NET.p2pOk = false; }
+      var st = pc.iceConnectionState;
+      if(st === 'connected' || st === 'completed'){ NET.p2pOk = true; }
+      else if(st === 'failed'){
+        NET.p2pOk = false;
+        if(NET.role === 'host' && !NET.p2pRetry){
+          NET.p2pRetry = true;
+          setTimeout(function(){ NET.p2pRetry = false; if(NET.role === 'host' && NET.pc === pc) rtcHostStart(); }, 3000);
+        }
+      }
     };
     pc.createOffer()
       .then(function(o){ return pc.setLocalDescription(o); })
-      .then(function(){ return rtcGather(pc, 2500); })
+      .then(function(){ return rtcGather(pc, 5000); })
       .then(function(){
         if(!NET.code || !pc.localDescription) return;
         netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'rtc', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } }));
@@ -268,12 +278,14 @@
     NET.pc = pc;
     pc.ondatachannel = function(ev){ p2pBind(ev.channel); };
     pc.oniceconnectionstatechange = function(){
-      if(pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected'){ NET.p2pOk = false; }
+      var st = pc.iceConnectionState;
+      if(st === 'connected' || st === 'completed'){ NET.p2pOk = true; }
+      else if(st === 'failed' || st === 'disconnected'){ NET.p2pOk = false; }
     };
     pc.setRemoteDescription(new RTCSessionDescription(desc))
       .then(function(){ return pc.createAnswer(); })
       .then(function(a){ return pc.setLocalDescription(a); })
-      .then(function(){ return rtcGather(pc, 2500); })
+      .then(function(){ return rtcGather(pc, 5000); })
       .then(function(){
         if(!NET.code || !NET.mq || !pc.localDescription) return;
         NET.mq.publish(Rp(NET.code,'c2h'), JSON.stringify({ t:'rtcAns', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } }));
@@ -286,7 +298,12 @@
   // 直连可用就用直连，否则回中继 —— 所有上行/下行都走这里
   function sendUp(str){
     if(p2pSend('i' + str)) return;
-    if(NET.mq) NET.mq.publish(Rp(NET.code,'c2h'), str);
+    if(NET.mq) NET.mq.publish(Rp(NET.code,'c2h'), 'i' + str);   // MQTT 路径也要带 i 前缀，否则主机收不到输入
+  }
+  function sendUpJSON(obj){
+    var s = JSON.stringify(obj);
+    if(p2pSend('j' + s)) return;
+    if(NET.mq) NET.mq.publish(Rp(NET.code,'c2h'), s);
   }
   function sendSnap(payload){
     if(p2pSend('s' + payload)) return;
@@ -482,6 +499,7 @@
   function onRelayMsg(topic, payload, src){
     if(!payload) return;
     if(topic.slice(-3) === 'h2c'){
+      if(NET.role === 'host') return;   // 主机绝不处理下行：多路中继 + 通配符订阅会把自己发的 acc/快照收回来
       if(payload.charAt(0) === '{'){
         var o = null;
         try{ o = JSON.parse(payload); }catch(_){ return; }
@@ -502,6 +520,7 @@
       try{
         var m = JSON.parse(payload);
         if(m.t === 'j') hostOnJoin(m);
+        else if(m.t === 'sel'){ if(NET.role === 'host') hostOnCtl(m); }
         else if(m.t === 'rtcAns'){ if(NET.role === 'host') rtcHostAnswer(m.sdp); }
       }catch(_){}
       return;
@@ -538,7 +557,14 @@
     G.userTeam = NET.myTeam;
     startGame();
     NET.remote = G.teams[NET.remoteTeam][9];
-    if(NET.remote) NET.remote.remoteCtl = true;
+    if(NET.remote){
+      NET.remote.remoteCtl = true;
+      // 客机操控的球员脚下亮光环
+      if(NET.remote.mesh && NET.remote.mesh.userData){
+        NET.remote.mesh.userData.ring.visible = true;
+        if(NET.remote.mesh.userData.ringGlow) NET.remote.mesh.userData.ringGlow.visible = true;
+      }
+    }
     NET.lastInpRecv = performance.now();
     NET.lastSend = 0; NET.snaps.length = 0;
     netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam }));
@@ -548,6 +574,7 @@
     if(typeof sayComment === 'function') sayComment('🌐 对手「' + NET.oppNick + '」已加入，比赛开始！');
   }
   function hostOnInput(str){
+    if(str.charAt(0) === 'i') str = str.slice(1);   // 兼容两种来源（MQTT 带前缀 / 直连已剥）
     var parts = str.split('|');
     NET.inp.x = +parts[0] || 0;
     NET.inp.y = +parts[1] || 0;
@@ -555,6 +582,28 @@
     var acts = parts[3] || '';
     for(var i=0;i<acts.length;i++) NET.act.push(acts.charAt(i));
     NET.lastInpRecv = performance.now();
+  }
+  // 客机控制消息（切换球员等）
+  function hostOnCtl(m){
+    if(!m) return;
+    if(m.t === 'sel'){
+      var arr = G.teams[NET.remoteTeam];
+      var idx = (m.i|0);
+      if(arr && idx >= 0 && idx < arr.length && arr[idx].role !== 'GK'){
+        // 旧操控对象光环熄灭
+        if(NET.remote && NET.remote.mesh && NET.remote.mesh.userData){
+          NET.remote.mesh.userData.ring.visible = false;
+          if(NET.remote.mesh.userData.ringGlow) NET.remote.mesh.userData.ringGlow.visible = false;
+        }
+        NET.remote = arr[idx];
+        NET.remote.remoteCtl = true;
+        // 新操控对象脚下亮光环（和单机一样）
+        if(NET.remote.mesh && NET.remote.mesh.userData){
+          NET.remote.mesh.userData.ring.visible = true;
+          if(NET.remote.mesh.userData.ringGlow) NET.remote.mesh.userData.ringGlow.visible = true;
+        }
+      }
+    }
   }
   function hostPreTick(dt){
     var p = NET.remote;
@@ -790,7 +839,13 @@
   };
   switchPlayer = function(){
     if(NET.role === 'client'){
-      if(typeof sayComment === 'function') sayComment('🌐 联机模式：固定操控你的前锋');
+      // 联机：和单机同一套切换逻辑（切到离球最近的本方非门将），再把所选编号告诉主机
+      var before = G.activeIdx;
+      _switchPlayer.apply(this, arguments);
+      if(G.activeIdx !== before){
+        sendUpJSON({ t:'sel', i: G.activeIdx });
+        if(typeof sayComment === 'function') sayComment('已切换操控本队 #' + (G.activeIdx+1));
+      }
       return;
     }
     return _switchPlayer.apply(this, arguments);
