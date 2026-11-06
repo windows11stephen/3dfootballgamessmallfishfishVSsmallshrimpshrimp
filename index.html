@@ -1288,7 +1288,7 @@ function sfx(name){
 // ---------------- 输入 ----------------
 const keys = {};
 window.addEventListener('keydown', e=>{
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code)) e.preventDefault();
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab','Numpad8','Numpad2','Numpad4','Numpad6'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
   if((e.code==='Space'||e.code==='KeyJ') && G.state==='play' && !G.paused) userShoot();
   if((e.code==='KeyK'||e.code==='KeyE') && G.state==='play' && !G.paused) userPass();
@@ -1308,10 +1308,10 @@ function userMove(dt){
   const p = activePlayer;
   if(!p) return;
   let dx=0, dz=0;
-  if(keys['KeyW']||keys['ArrowUp']) dz -= 1;
-  if(keys['KeyS']||keys['ArrowDown']) dz += 1;
-  if(keys['KeyA']||keys['ArrowLeft']) dx -= 1;
-  if(keys['KeyD']||keys['ArrowRight']) dx += 1;
+  if(keys['KeyW']||keys['ArrowUp']||keys['Numpad8']) dz -= 1;
+  if(keys['KeyS']||keys['ArrowDown']||keys['Numpad2']) dz += 1;
+  if(keys['KeyA']||keys['ArrowLeft']||keys['Numpad4']) dx -= 1;
+  if(keys['KeyD']||keys['ArrowRight']||keys['Numpad6']) dx += 1;
   const sprint = keys['ShiftLeft']||keys['ShiftRight'];
   const spd = sprint? SPRINT_SPD+USER_SPRINT_BOOST : WALK_SPD;   // 玩家冲刺更快，方便追防持球人
   const len = Math.hypot(dx,dz);
