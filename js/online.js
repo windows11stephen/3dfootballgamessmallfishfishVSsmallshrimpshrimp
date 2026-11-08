@@ -118,7 +118,7 @@
     role: null,            // null | 'host' | 'client' | 'client-wait'
     code: '', nick: '', oppNick: '',
     broker: '', mq: null, mqs: [], roomMq: null, roomSeen: false,
-    rooms: {}, p2p: null, p2pOk: false, pc: null, p2pAt: 0,
+    rooms: {}, p2p: null, p2pOk: false, pc: null, p2pAt: 0, p2pRestarted: false,
     myTeam: 0, remoteTeam: 1, remoteIdx: 9,
     remote: null,
     inp: { x: 0, y: 0, sp: 0 },
@@ -190,7 +190,9 @@
      - 直连建立失败/中途断开：自动继续用中继，玩家无感
      ============================================================ */
   var ICE = { iceServers: [
-    { urls: [ 'stun:stun.miwifi.com:3478', 'stun:stun.qq.com:3478' ] },
+    { urls: 'stun:stun.miwifi.com:3478' },
+    { urls: 'stun:stun.qq.com:3478' },
+    { urls: 'stun:stun.l.google.com:19302' },
     { urls: [ 'turn:openrelay.metered.ca:3478?transport=udp', 'turn:openrelay.metered.ca:3478?transport=tcp', 'turns:openrelay.metered.ca:443' ],
       username: 'openrelayproject', credential: 'openrelayproject' }
   ] };
@@ -244,6 +246,16 @@
       };
     });
   }
+  function rtcGather(pc, ms){
+    return new Promise(function(res){
+      if(pc.iceGatheringState === 'complete') return res();
+      var done = false;
+      var t = setTimeout(function(){ if(!done){ done = true; res(); } }, ms || 2500);
+      pc.onicegatheringstatechange = function(){
+        if(pc.iceGatheringState === 'complete' && !done){ done = true; clearTimeout(t); res(); }
+      };
+    });
+  }
   function rtcHostStart(){
     if(!rtcOK() || !NET.code) return;
     p2pKill();
@@ -264,7 +276,7 @@
     };
     pc.createOffer()
       .then(function(o){ return pc.setLocalDescription(o); })
-      .then(function(){ return rtcGather(pc, 5000); })
+      .then(function(){ return rtcGather(pc, 2500); })
       .then(function(){
         if(!NET.code || !pc.localDescription) return;
         netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'rtc', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } }));
@@ -280,12 +292,12 @@
     pc.oniceconnectionstatechange = function(){
       var st = pc.iceConnectionState;
       if(st === 'connected' || st === 'completed'){ NET.p2pOk = true; }
-      else if(st === 'failed' || st === 'disconnected'){ NET.p2pOk = false; }
+      else if(st === 'failed'){ NET.p2pOk = false; }
     };
     pc.setRemoteDescription(new RTCSessionDescription(desc))
       .then(function(){ return pc.createAnswer(); })
       .then(function(a){ return pc.setLocalDescription(a); })
-      .then(function(){ return rtcGather(pc, 5000); })
+      .then(function(){ return rtcGather(pc, 2500); })
       .then(function(){
         if(!NET.code || !NET.mq || !pc.localDescription) return;
         NET.mq.publish(Rp(NET.code,'c2h'), JSON.stringify({ t:'rtcAns', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } }));

@@ -675,15 +675,46 @@ function makeAdTex(texts){
 
 function buildCrowdTex(){
   const c=makeCanvas(512,256); const g=c.getContext('2d');
-  // 2026 世界杯观众：红白黑金色调
-  const cols=['#e30613','#ffffff','#111318','#e8b93c','#a30a12','#f2f2f2','#c91018','#1a1d26','#ffd97a','#7f0a10','#d8d8d8'];
-  for(let y=8;y<256;y+=10){
-    for(let x=4;x<512;x+=9){
-      g.fillStyle=cols[(Math.random()*cols.length)|0];
-      g.fillRect(x,y,6,7);
+  // 背景：座椅阶梯（深蓝灰，横向明暗交替）
+  g.fillStyle='#232a33'; g.fillRect(0,0,512,256);
+  for(let y=0;y<256;y+=14){
+    g.fillStyle=(y/14)%2? '#2a323d':'#1d232b';
+    g.fillRect(0,y,512,14);
+    // 每排座椅的前沿高光线
+    g.fillStyle='rgba(255,255,255,0.06)'; g.fillRect(0,y,512,1);
+  }
+  // 观众：每排小脑袋 + 肩膀（球衣色）
+  const shirtCols=['#e30613','#ffffff','#111318','#e8b93c','#a30a12','#f2f2f2','#c91018','#1a1d26','#ffd97a','#7f0a10','#d8d8d8','#2fa9ff'];
+  const skinCols=['#e8b88a','#c98a5a','#8a5a3a','#f0c8a0','#5a3a22'];
+  for(let row=0; row<18; row++){
+    const yBase = 6 + row*14;
+    for(let x=2; x<512; x+=7){
+      // 过道：每 64px 留 5px 空
+      const aisle = ((x % 64) < 5);
+      if(aisle) continue;
+      const jx = x + (Math.random()*2-1);
+      const jy = yBase + (Math.random()*2-1);
+      const shirt = shirtCols[(Math.random()*shirtCols.length)|0];
+      const skin  = skinCols[(Math.random()*skinCols.length)|0];
+      // 肩膀（梯形小块）
+      g.fillStyle = shirt;
+      g.fillRect(jx-2.5, jy+3, 5, 4);
+      // 脑袋
+      g.fillStyle = skin;
+      g.beginPath(); g.arc(jx, jy+1.5, 2, 0, Math.PI*2); g.fill();
     }
   }
-  return texFromCanvas(c);
+  // 零星旗帜/纸屑（红/金/白小方块）
+  for(let i=0;i<120;i++){
+    g.fillStyle = ['#e30613','#e8b93c','#ffffff'][(Math.random()*3)|0];
+    g.fillRect(Math.random()*512, Math.random()*256, 2, 2);
+  }
+  const tex = texFromCanvas(c);
+  // 看台盒子宽 ~120m 高 8m，贴图横向重复 8 次避免拉伸变形
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.repeat.set(8, 1);
+  return tex;
 }
 
 function buildBallTex(){
