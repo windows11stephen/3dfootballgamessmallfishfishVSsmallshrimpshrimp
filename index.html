@@ -3229,7 +3229,7 @@ window.addEventListener('load', ()=>{
 // 榜单跨人共享走 online.js 里的公共 MQTT retained 主题，无自建后端；中继不可达则退回本机榜。
 (function(){
   var ID_KEY='zhuj_rank_id', NICK_KEY='zhuj_rank_nick', LOCAL_KEY='zhuj_rank_local_v1';
-  var pid = '';
+  var pid = '', syncing = false;
   try {
     pid = localStorage.getItem(ID_KEY) || '';
     if(!pid){ pid = 'p' + Math.random().toString(36).slice(2,10); localStorage.setItem(ID_KEY, pid); }
@@ -3262,11 +3262,38 @@ window.addEventListener('load', ()=>{
     }
     try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(a.slice(-20))); }catch(_){}
   }
+  function isMe(x){ return !!(x && ((x.ids && x.ids.indexOf(pid) >= 0) || x.id === pid)); }
+  // 同一个人玩多次（同昵称，可能换设备/换浏览器）只保留最高分，不重复占榜
   function merge(remote){
-    var map = {};
-    localList().forEach(function(x){ if(x && x.id) map[x.id] = x; });
-    (remote||[]).forEach(function(x){ if(x && x.id && (!map[x.id] || x.p > map[x.id].p)) map[x.id] = x; });
-    var list = Object.keys(map).map(function(k){ return map[k]; });
+    var arr = [];
+    function add(x){
+      if(!x || !x.id || typeof x.p !== 'number' || !isFinite(x.p)) return;
+      arr.push({ id:x.id, n:x.n, p:x.p, g:+x.g||0, c:+x.c||0, s:x.s, t:+x.t||0 });
+    }
+    localList().forEach(function(x){ if(x && x.s === season()) add(x); });
+    (remote||[]).forEach(add);
+
+    // 同一 ID 换过昵称、或同一昵称换过设备：并成一个玩家，取其中最高分
+    var parent = arr.map(function(_, i){ return i; });
+    function find(i){ while(parent[i] !== i){ parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+    function uni(i, j){ i = find(i); j = find(j); if(i !== j) parent[j] = i; }
+    var idAt = {}, nameAt = {};
+    arr.forEach(function(x, i){
+      if(idAt[x.id] !== undefined) uni(i, idAt[x.id]); else idAt[x.id] = i;
+      var nm = String(x.n==null?'':x.n).trim().toLowerCase();
+      if(nm && nm !== '匿名'){ if(nameAt[nm] !== undefined) uni(i, nameAt[nm]); else nameAt[nm] = i; }
+    });
+
+    var groups = {};
+    arr.forEach(function(x, i){
+      var r = find(i), g = groups[r];
+      if(!g){ groups[r] = { id:x.id, ids:[x.id], n:x.n, p:x.p, g:x.g, c:x.c, s:x.s, t:x.t }; return; }
+      if(g.ids.indexOf(x.id) < 0) g.ids.push(x.id);
+      if(x.p > g.p || (x.p === g.p && x.g > g.g)){
+        g.id = x.id; g.n = x.n; g.p = x.p; g.g = x.g; g.c = x.c; g.s = x.s; g.t = x.t;
+      }
+    });
+    var list = Object.keys(groups).map(function(k){ return groups[k]; });
     list.sort(function(a,b){ return (b.p-a.p) || (b.g-a.g) || ((a.t||0)-(b.t||0)); });
     return list;
   }
@@ -3275,11 +3302,11 @@ window.addEventListener('load', ()=>{
     var medals = ['🥇','🥈','🥉'];
     var html = '';
     list.slice(0,3).forEach(function(x,i){
-      html += '<div class="rk-row top'+(i+1)+(x.id===pid?' me':'')+'"><span class="pos">'+medals[i]+'</span>'+
+      html += '<div class="rk-row top'+(i+1)+(isMe(x)?' me':'')+'"><span class="pos">'+medals[i]+'</span>'+
         '<span class="nm">'+esc(x.n)+'</span><span class="sc">'+x.p+' 分</span>'+
         '<span class="dt">'+x.g+'-'+x.c+'</span></div>';
     });
-    var meIdx = list.findIndex(function(x){ return x.id===pid; });
+    var meIdx = list.findIndex(function(x){ return isMe(x); });
     if(meIdx >= 3){
       var me = list[meIdx];
       html += '<div class="rk-row me"><span class="pos">#'+(meIdx+1)+'</span><span class="nm">'+esc(me.n)+'（你）</span>'+
@@ -3318,12 +3345,30 @@ window.addEventListener('load', ()=>{
     window.openRank();
   };
 
+  // 换过浏览器/之前没传上去的本机最高分，打开榜单时自动补传一次
+  function syncLocalBest(remote){
+    if(syncing || !window.RANK) return;
+    var s = season();
+    var lb = localList().filter(function(x){ return x && x.id === pid && x.s === s; })[0];
+    if(!lb) return;
+    var rb = null;
+    (remote||[]).forEach(function(x){ if(x && x.id === pid && (!rb || x.p > rb.p)) rb = x; });
+    if(rb && rb.p >= lb.p) return;
+    syncing = true;
+    msg('正在同步本机最高分…');
+    RANK.submit(lb).then(function(ok){
+      syncing = false;
+      msg(ok ? ('本机最高分已同步上榜 · ' + lb.p + ' 分') : '本机最高分暂未同步（公共中继连不上）', !ok);
+    });
+  }
+
   window.rankRefresh = function(){
     if(!window.RANK){ render(merge([]), '联机模块未加载，只能看本机成绩'); return; }
     msg('正在通过公共中继拉取榜单…');
     RANK.fetch(season(), function(list){
       if(!list){ render(merge([]), '公共中继暂时连不上，先显示本机成绩'); return; }
       render(merge(list), '本赛季 '+season()+' · 前 3 名公布');
+      syncLocalBest(list);
     });
   };
 
@@ -3344,19 +3389,22 @@ window.addEventListener('load', ()=>{
     G.rankSubmitted = true;
     var g = G.score[0], c = G.score[1];
     var pts = Math.min(30, g) * 100 + Math.max(0, g-c) * 10;
+    var prev = localList().filter(function(x){ return x && x.id === pid && x.s === season(); })[0];
     var entry = { id: pid, n: nickname(), p: pts, g: g, c: c, s: season(), t: Date.now() };
+    // 同一个人打多场：榜上永远保留最高分，低分场次不覆盖
+    if(prev && prev.p > entry.p) entry = { id: pid, n: entry.n, p: prev.p, g: prev.g, c: prev.c, s: entry.s, t: Date.now() };
     localSave(entry);
     var rb = el('btn-rank-end'); if(rb) rb.classList.remove('hidden');
     var log = el('end-log');
     if(log){
       log.innerHTML = '<div style="color:#ffd24a;font-weight:900;margin-bottom:6px">🏅 排位得分 ' + pts +
-        ' 分（进球 ' + g + ' · 失球 ' + c + '）</div>' + log.innerHTML;
+        ' 分（进球 ' + g + ' · 失球 ' + c + '）' + (entry.p > pts ? ' · 最高 ' + entry.p + ' 分' : '') + '</div>' + log.innerHTML;
     }
     msg('正在上传成绩…');
     if(window.RANK){
       RANK.submit(entry).then(function(ok){
-        msg(ok ? ('已上榜 · 本赛季 '+entry.s+' · '+pts+' 分')
-               : ('公共中继未连通，成绩已存本机 · '+pts+' 分'), !ok);
+        msg(ok ? ('已上榜 · 本赛季 '+entry.s+' · '+entry.p+' 分')
+               : ('公共中继未连通，成绩已存本机 · '+entry.p+' 分'), !ok);
       });
     } else {
       msg('联机模块未加载，成绩已存本机 · '+pts+' 分', true);

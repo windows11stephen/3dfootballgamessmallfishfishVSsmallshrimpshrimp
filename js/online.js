@@ -34,7 +34,7 @@
     var self = this;
     return new Promise(function(resolve, reject){
       var settled = false, ws;
-      try { ws = new WebSocket(self.url); } catch(e){ return reject(e); }
+      try { ws = new WebSocket(self.url, ['mqtt']); } catch(e){ return reject(e); }
       self.ws = ws; ws.binaryType = 'arraybuffer';
       var timer = setTimeout(function(){ if(!settled){ settled = true; try{ws.close();}catch(_){}; reject(new Error('连接超时')); } }, timeoutMs || 10000);
       ws.onopen = function(){
@@ -1039,30 +1039,12 @@
   // 每人一条 retained 主题 zhujcup2026/rank/<赛季>/<玩家ID>，榜单页用 + 通配一次性收齐。
   // 不依赖自建后端；公共中继不可达时前端只看本机成绩。
   var RANK_NS = NS + 'rank/';
-  var RANK_TIMEOUT = 7000;
-
-  function rankBroker(){
-    // 只取“最快连上的一路”，比 connectRelays 少等 2.5s
-    return new Promise(function(resolve){
-      var done = false, alive = [];
-      var finish = function(mq){
-        if(done) return; done = true;
-        alive.forEach(function(m){ if(m !== mq){ try{ m.close(); }catch(_){} } });
-        resolve(mq || null);
-      };
-      var timer = setTimeout(function(){ finish(null); }, RANK_TIMEOUT);
-      BROKERS.forEach(function(url){
-        var mq = new MiniMQTT(url, 'zhujr_' + Math.random().toString(36).slice(2, 8));
-        mq.connect(RANK_TIMEOUT).then(function(){
-          if(done){ try{ mq.close(); }catch(_){} return; }
-          clearTimeout(timer);
-          finish(mq);
-        }).catch(function(){ try{ mq.close(); }catch(_){} });
-        alive.push(mq);
-      });
-      setTimeout(function(){ clearTimeout(timer); finish(null); }, RANK_TIMEOUT);
-    });
-  }
+  // 榜单多路备份：任意一路连得上就能看榜、上榜，避免被单一中继限流卡死
+  var RANK_BROKERS = [
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker-cn.emqx.io:8084/mqtt'
+  ];
 
   function seasonKey(){
     var d = new Date();
@@ -1091,31 +1073,63 @@
   window.RANK = {
     season: seasonKey,
     submit: function(entry){
-      return rankBroker().then(function(mq){
-        if(!mq) return false;
+      return new Promise(function(resolve){
         var season = entry.s || seasonKey();
-        mq.publish(RANK_NS + season + '/' + entry.id, JSON.stringify(entry), true);
-        return sleep(1100).then(function(){ try{ mq.close(); }catch(_){} return true; });
-      }).catch(function(){ return false; });
+        var topic = RANK_NS + season + '/' + entry.id;
+        var done = false;
+        var finish = function(ok){ if(done) return; done = true; resolve(ok); };
+        RANK_BROKERS.forEach(function(url){
+          var mq = new MiniMQTT(url, 'zhujr_' + Math.random().toString(36).slice(2, 8));
+          mq.connect(5000).then(function(){
+            var decided = false, seen = null;
+            var decide = function(){
+              if(decided) return; decided = true;
+              // 同一玩家已有更高分 → 不拿这次的低分去覆盖，最高分留在榜上
+              var keep = seen && (seen.p > entry.p || (seen.p === entry.p && seen.g >= (+entry.g||0)));
+              if(!keep){ try{ mq.publish(topic, JSON.stringify(entry), true); }catch(_){} }
+              setTimeout(function(){ try{ mq.close(); }catch(_){} }, 900);
+              finish(true);
+            };
+            mq.onmsg = function(t, payload){
+              if(t !== topic) return;
+              var o = rankParse(t, payload);
+              if(o && o.id === entry.id && (!seen || o.p > seen.p)) seen = o;
+              decide();
+            };
+            try{ mq.subscribe(topic); }catch(_){}
+            setTimeout(decide, 1200);
+          }).catch(function(){ try{ mq.close(); }catch(_){} });
+        });
+        setTimeout(function(){ finish(false); }, 7500);
+      });
     },
     fetch: function(season, cb){
       season = season || seasonKey();
-      var got = {}, closed = false;
-      var finish = function(mq){
+      var got = {}, mqs = [], started = false, closed = false;
+      var finish = function(none){
         if(closed) return; closed = true;
-        try{ if(mq) mq.close(); }catch(_){}
-        var list = Object.keys(got).map(function(k){ return got[k]; });
-        cb(list);
+        mqs.forEach(function(m){ try{ m.close(); }catch(_){} });
+        cb(none ? null : Object.keys(got).map(function(k){ return got[k]; }));
       };
-      rankBroker().then(function(mq){
-        if(!mq){ finish(null); return; }
-        mq.onmsg = function(topic, payload){
-          var o = rankParse(topic, payload);
-          if(o && o.s === season) got[o.id] = o;
-        };
-        mq.subscribe(RANK_NS + season + '/+');
-        setTimeout(function(){ finish(mq); }, 2600);
-      }).catch(function(){ finish(null); });
+      var startWindow = function(){
+        if(started) return; started = true;
+        setTimeout(function(){ finish(false); }, 3200);
+      };
+      RANK_BROKERS.forEach(function(url){
+        var mq = new MiniMQTT(url, 'zhujr_' + Math.random().toString(36).slice(2, 8));
+        mq.connect(5000).then(function(){
+          if(closed){ try{ mq.close(); }catch(_){} return; }
+          mqs.push(mq);
+          mq.onmsg = function(topic, payload){
+            var o = rankParse(topic, payload);
+            if(o && o.s === season && (!got[o.id] || o.p > got[o.id].p)) got[o.id] = o;
+          };
+          mq.subscribe(RANK_NS + season + '/+');
+          startWindow();
+        }).catch(function(){ try{ mq.close(); }catch(_){} });
+      });
+      setTimeout(function(){ if(!started) finish(true); }, 7500);
     }
   };
 })();
+
