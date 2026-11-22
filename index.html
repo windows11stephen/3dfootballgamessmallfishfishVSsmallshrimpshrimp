@@ -21,7 +21,8 @@
     border-radius:14px; padding:8px 22px 10px; box-shadow:0 8px 30px rgba(0,0,0,.6); backdrop-filter:blur(6px); }
   #tournament-tag { font-size:11px; font-weight:800; letter-spacing:3px; color:var(--wc-gold);
     margin-bottom:2px; text-shadow:0 1px 6px rgba(0,0,0,.6); }
-  #sb-card .teamname { font-size:21px; font-weight:900; letter-spacing:1px; display:flex; align-items:center; gap:6px; }
+  #sb-card .teamname { font-size:21px; font-weight:900; letter-spacing:1px; display:flex; align-items:center; gap:6px;
+                         white-space:nowrap; flex:0 0 auto; }
   #sb-card .badge { font-size:20px; }
   #scoreboard .score { font-size:36px; font-weight:900; color:#fff; min-width:42px; text-align:center;
     font-family:"Arial Black",sans-serif; text-shadow:0 0 16px rgba(232,185,60,.5); }
@@ -40,11 +41,12 @@
   #controls-hint b { color:#fff; }
   #controls-hint .key { display:inline-block; background:rgba(227,6,19,.2); border:1px solid rgba(227,6,19,.5);
     border-radius:5px; padding:0 7px; margin-right:4px; font-family:"Consolas",monospace; font-size:12px; color:#ff9d9d; }
-  #btn-mute,#btn-restart,#btn-cam { bottom:16px; pointer-events:auto; cursor:pointer;
+  #btn-mute,#btn-restart,#btn-cam,#btn-night { bottom:16px; pointer-events:auto; cursor:pointer;
     background:rgba(10,13,20,.82); border:1px solid rgba(255,255,255,.18); color:#eaf2ff; border-radius:12px;
     padding:10px 16px; font-size:14px; font-weight:600; z-index:20; }
   #btn-mute { right:138px; }
   #btn-cam { right:268px; }
+  #btn-restart { right:16px; }
   #btn-mute:hover,#btn-restart:hover,#btn-cam:hover { border-color:var(--wc-red); color:#fff; }
   #active-info { top:176px; left:16px; font-size:13px; font-weight:700; color:#ffe9c2; background:rgba(10,13,20,.78);
     border:1px solid rgba(232,185,60,.35); border-radius:10px; padding:6px 12px; z-index:20; }
@@ -52,7 +54,11 @@
   /* ---------- Overlays ---------- */
   .overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     background:radial-gradient(ellipse at center, rgba(30,10,14,.92) 0%, rgba(6,8,12,.98) 100%);
-    z-index:50; transition:opacity .5s; }
+    z-index:50; transition:opacity .5s;
+    overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
+    padding: max(10px, env(safe-area-inset-top,0px)) 8px max(10px, env(safe-area-inset-bottom,0px)); }
+  /* 内容比屏幕高时从顶部开始滚，不裁掉标题（flex 居中的经典溢出问题） */
+  .overlay::before, .overlay::after { content:''; flex:0 0 0; margin-block:auto; }
   .hidden { display:none !important; }
   /* ---- 联机 UI ---- */
   .online-row { display:flex; gap:12px; justify-content:center; margin:10px 0 2px; }
@@ -102,9 +108,9 @@
   /* 左手习惯：摇杆和按钮位置互换 */
   body.lefty #joy-zone { left:auto; right:0; }
   body.lefty #btn-zone { right:auto; left:0; }
-  /* 摇杆尺寸 */
-  body.joy-s #joy-zone { width:34vw !important; height:34vw !important; max-width:200px !important; max-height:200px !important; }
-  body.joy-l #joy-zone { width:52vw !important; height:52vw !important; max-width:320px !important; max-height:320px !important; }
+  /* 摇杆尺寸（直接改基础直径，避免和响应式尺寸打架） */
+  body.joy-s { --joy-base: clamp(96px, min(22vw, 20vh), 140px); }
+  body.joy-l { --joy-base: clamp(148px, min(34vw, 31vh), 208px); }
   body.tbtn-s { --tbtn: 54px; --tbtn-big: 66px; }
   body.tbtn-l { --tbtn: 84px; --tbtn-big: 102px; }
   #net-badge { top:176px; right:16px; left:auto; font-size:12px; font-weight:700; color:#9fe6ff;
@@ -228,7 +234,10 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
     touch-action:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.45); }
   .tbtn .ic { font-size:23px; line-height:1; }
-  .tbtn.pressed { transform:scale(.9); border-color:var(--wc-gold); background:rgba(227,6,19,.6); }
+  .tbtn.pressed { transform:translate(var(--tdx,0px), var(--tdy,0px)) scale(.9); border-color:var(--wc-gold); background:rgba(227,6,19,.6); }
+  /* 按钮在网格里是 static，给 left/top 不会动；拖拽位移统一用 --tdx/--tdy 记，布局不塌 */
+  .tbtn, #t-shoot { transform:translate(var(--tdx,0px), var(--tdy,0px)); }
+  #t-shoot.pressed { transform:translate(var(--tdx,0px), var(--tdy,0px)) scale(.9); }
   #t-shoot { width:96px; height:96px; font-size:17px; border-color:rgba(227,6,19,.75);
     background:linear-gradient(160deg, rgba(227,6,19,.55), rgba(120,10,14,.6)); }
   #t-shoot .ic { font-size:28px; }
@@ -249,8 +258,9 @@
   .touch-mode #btn-mute { top:236px; }
   .touch-mode #btn-night { top:286px; }
   .touch-mode #btn-restart { top:336px; }
-  .touch-mode .btn-primary { font-size:26px; padding:20px 66px; }
-  .touch-mode .team-card { width:290px; padding:28px 20px; }
+  .touch-mode .btn-primary { font-size:clamp(18px, 4.4vw, 26px); padding:clamp(12px, 2.4vh, 20px) clamp(30px, 9vw, 66px); }
+  .touch-mode .team-card { width:min(290px, 40vw); padding:clamp(12px, 2.6vh, 26px) clamp(10px, 2vw, 18px); }
+  .touch-mode .team-card .tname { font-size:clamp(20px, 4.2vw, 28px); }
   .touch-mode .diff-btn { font-size:18px; padding:16px 26px; }
   .touch-mode #controls-info { font-size:16px; line-height:2.2; }
   .touch-mode #btn-skip-replay { bottom:270px; right:14px; padding:12px 20px; font-size:16px; }
@@ -266,78 +276,154 @@
   .touch-mode #minimap { width:220px; height:146px; }
   .touch-mode #btn-zone { gap:14px; padding:18px; }
   .touch-mode #t-pause { border-color:var(--wc-gold); background:rgba(30,40,60,.78); }
-  #mode-switch { position:fixed; right:16px; bottom:64px; z-index:46; pointer-events:auto; cursor:pointer;
+  #mode-switch { position:fixed; right:max(12px, env(safe-area-inset-right,0px));
+    bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:72; pointer-events:auto; cursor:pointer;
     background:rgba(10,13,20,.88); border:1px solid rgba(255,255,255,.28); color:#eaf2ff; border-radius:12px;
     padding:9px 16px; font-size:13px; font-weight:700; box-shadow:0 4px 14px rgba(0,0,0,.45); }
   .touch-mode #mode-switch { display:block; }
+  .pc-mode #mode-switch { bottom:70px; }   /* 桌面：不压住“重新开局” */
 
-  /* ===== 触屏响应式（按机型自适应，避开 iPhone 安全区） ===== */
-  :root { --tbtn: clamp(58px, 17.5vw, 80px); --tbtn-big: clamp(70px, 21vw, 96px); }
-  #joy-zone { left: max(0px, env(safe-area-inset-left, 0px)); }
-  #btn-zone {
+  /* ===== 触屏响应式（横屏/竖屏都按可用空间算，保证没有点不到的死角） ===== */
+  #side-tools { display: contents; }   /* 桌面：子按钮继续用各自的 fixed 定位，位置不变 */
+
+  /* 按钮直径同时参考屏宽和屏高：横屏矮屏也不会溢出屏幕 */
+  :root {
+    --tbtn: clamp(44px, min(15vw, 15.2vh), 84px);
+    --tbtn-big: clamp(54px, min(17.6vw, 18vh), 100px);
+    --joy-base: clamp(96px, min(27vw, 24vh), 172px);
+  }
+
+  .touch-mode #joy-zone {
+    left: max(0px, env(safe-area-inset-left, 0px));
+    bottom: max(0px, env(safe-area-inset-bottom, 0px));
+    width: calc(var(--joy-base) * 1.55);
+    height: calc(var(--joy-base) * 1.55);
+    max-width: 260px; max-height: 260px;
+  }
+  #joy-base { width: var(--joy-base); height: var(--joy-base); }
+  #joy-knob { width: 44%; height: 44%; margin: -22% 0 0 -22%; }
+
+  .touch-mode #btn-zone {
     right: max(0px, env(safe-area-inset-right, 0px));
-    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    grid-template-columns: repeat(3, var(--tbtn));
-    gap: calc(var(--tbtn) * 0.18);
+    bottom: max(0px, env(safe-area-inset-bottom, 0px));
+    grid-template-columns: repeat(3, auto);
+    grid-auto-rows: auto;
+    gap: clamp(6px, 1.5vh, 14px);
+    padding: clamp(6px, 1.5vw, 16px) clamp(6px, 1.5vw, 16px) clamp(8px, 2vh, 18px);
+    max-width: none;
+    justify-content: end; align-content: end;
   }
-  .tbtn { width: var(--tbtn); height: var(--tbtn); font-size: calc(var(--tbtn) * 0.18); }
-  .tbtn .ic { font-size: calc(var(--tbtn) * 0.30); }
+  .tbtn { width: var(--tbtn); height: var(--tbtn); font-size: calc(var(--tbtn) * 0.185); }
+  .tbtn .ic { font-size: calc(var(--tbtn) * 0.32); }
   #t-shoot { width: var(--tbtn-big); height: var(--tbtn-big); font-size: calc(var(--tbtn-big) * 0.20); }
-  #t-shoot .ic { font-size: calc(var(--tbtn-big) * 0.30); }
-  /* 矮屏（横屏手机）：摇杆和按钮整体缩小，避免挡球场 */
-  @media (pointer:coarse) and (max-height: 480px) {
-    :root { --tbtn: 54px; --tbtn-big: 66px; }
-    #joy-zone { width: 38vw !important; height: 38vw !important; max-width: 200px !important; max-height: 200px !important; }
-    #joy-base { width: 130px; height: 130px; }
-    #joy-knob { width: 60px; height: 60px; margin:-30px 0 0 -30px; }
-    #minimap { width: 130px !important; height: 88px !important; }
-    #active-info, #stats { top: 110px !important; }
-    #btn-cam { top: 150px !important; } #btn-mute { top: 195px !important; }
-    #btn-night { top: 240px !important; } #btn-restart { top: 285px !important; }
+  #t-shoot .ic { font-size: calc(var(--tbtn-big) * 0.32); }
+
+  /* 手机/平板：桌面那 4 个侧边小按钮会被按钮区/屏幕边缘压住，直接不显示
+     （镜头→右下的📷，暂停→右下的⏸，其余请在“键盘模式”里用） */
+  .touch-mode #side-tools { display: none; }
+  @media (pointer:coarse), (hover:none) { #side-tools { display: none !important; } }
+
+  /* 触屏 HUD 重新排布：不再互相压住 */
+  .touch-mode #minimap { top: max(8px, env(safe-area-inset-top, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); }
+  .touch-mode #active-info { top: calc(env(safe-area-inset-top, 0px) + 152px); left: max(8px, env(safe-area-inset-left, 0px)); }
+  .touch-mode #stats { top: calc(env(safe-area-inset-top, 0px) + 96px); right: max(8px, env(safe-area-inset-right, 0px)); }
+  .touch-mode #net-badge { top: calc(env(safe-area-inset-top, 0px) + 140px); right: max(8px, env(safe-area-inset-right, 0px)); }
+  .touch-mode #commentary { bottom: calc(var(--tbtn-big) + 34px); max-width: 76%; font-size: 15px; }
+  .touch-mode #btn-skip-replay { bottom: calc(var(--tbtn-big) + 30px); right: max(8px, env(safe-area-inset-right, 0px)); }
+
+  /* 触屏/键盘模式切换：只在菜单和结算显示，比赛中不占按钮区（避免点不到） */
+  .touch-mode #mode-switch { display: none; }
+  @media (pointer:coarse), (hover:none) { #mode-switch { display: none; } }
+
+  /* 矮屏（横屏手机）进一步收紧，绝不让按钮跑出可视区 */
+  @media (max-height: 480px) {
+    .touch-mode #minimap { width: clamp(116px, 22vw, 150px); height: clamp(78px, 14.5vw, 100px); }
+    .touch-mode #active-info { top: calc(env(safe-area-inset-top, 0px) + 116px); font-size: 12px; }
+    .touch-mode #stats { top: calc(env(safe-area-inset-top, 0px) + 78px); font-size: 12px; }
+    .touch-mode #net-badge { top: calc(env(safe-area-inset-top, 0px) + 118px); font-size: 11px; }
   }
-  .touch-mode #btn-cam { top:188px; }
-  .touch-mode #btn-mute { top:248px; }
-  .touch-mode #btn-night { top:308px; }
-  .touch-mode #btn-restart { top:368px; }
 
   /* ===== 触屏自动适配（CSS 层兜底：无需 JS 检测也自动切换，iPhone/安卓直接生效） ===== */
   @media (pointer:coarse), (hover:none) {
-    #joy-zone { display:block; left:0; bottom:0; width:44vw; height:44vw; max-width:270px; max-height:270px; z-index:45; }
-    #btn-zone { display:grid; right:0; bottom:0; grid-template-columns:repeat(3, 78px); gap:14px;
-      padding:18px; justify-content:end; align-content:end; max-width:320px; z-index:45; }
-    #mode-switch { display:block; }
+    #joy-zone { display:block; left:0; bottom:0; width:calc(var(--joy-base) * 1.55);
+      height:calc(var(--joy-base) * 1.55); max-width:260px; max-height:260px; z-index:45; }
+    #btn-zone { display:grid; right:0; bottom:0; grid-template-columns:repeat(3, auto);
+      gap:clamp(6px, 1.5vh, 14px); padding:clamp(6px,1.5vw,16px); justify-content:end; align-content:end; z-index:45; }
     /* #controls-hint 保留显示（手机/平板由 JS 隐藏） */
     #scoreboard .score { font-size:42px; min-width:46px; }
     #sb-card .teamname { font-size:24px; }
     #tournament-tag { font-size:13px; }
     #clock { font-size:30px; padding:10px 20px; }
-    #minimap { top:10px; left:10px; width:220px; height:146px; padding:5px; }
-    #active-info { top:150px; left:10px; font-size:14px; padding:8px 14px; }
-    #commentary { bottom:270px; font-size:18px; max-width:70%; }
-    #stats { top:150px; right:10px; font-size:14px; }
-    #btn-mute, #btn-cam, #btn-restart, #btn-night { right:10px; bottom:auto; font-size:13px; padding:10px 14px; width:auto; }
-    #btn-cam { top:188px; }
-    #btn-mute { top:248px; }
-    #btn-night { top:308px; }
-    #btn-restart { top:368px; }
+    #minimap { top:max(8px, env(safe-area-inset-top,0px)); left:max(8px, env(safe-area-inset-left,0px)); padding:5px; }
+    #active-info { font-size:14px; padding:8px 14px; }
+    #commentary { font-size:16px; max-width:76%; }
+    #stats { font-size:13px; }
     .btn-primary { font-size:26px; padding:20px 66px; }
-    .team-card { width:290px; padding:28px 20px; }
+    .team-card { width:min(290px, 42vw); padding:28px 20px; }
     .diff-btn { font-size:18px; padding:16px 26px; }
     #controls-info { font-size:16px; line-height:2.2; }
-    #btn-skip-replay { bottom:270px; right:14px; padding:12px 20px; font-size:16px; }
   }
   /* 手动模式覆盖（优先级高于 media query） */
   .pc-mode #joy-zone, .pc-mode #btn-zone { display:none !important; }
   .pc-mode #controls-hint { display:block !important; }
+  .touch-mode #controls-hint { display:none !important; }   /* 触屏下别再显示 WASD 提示条，它会压住摇杆 */
   .touch-mode #joy-zone { display:block; }
   .touch-mode #btn-zone { display:grid; }
-  .touch-mode #mode-switch { display:block; }
 
   /* （按钮冷却环已移除：恢复原包直接触发手感） */
 
-  /* 横屏提示 */
-  #rotate-tip { display:none; position:fixed; top:0; left:0; right:0; z-index:70; text-align:center;
-    background:rgba(227,6,19,.88); color:#fff; font-size:14px; font-weight:700; padding:7px 10px; letter-spacing:1px; }
+  /* 横屏提示（不挡点击、不压时钟） */
+  #rotate-tip { display:none; position:fixed; top:auto; left:50%; transform:translateX(-50%);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 10px); z-index:70; text-align:center; pointer-events:none;
+    background:rgba(227,6,19,.88); color:#fff; font-size:13px; font-weight:700; padding:6px 14px; letter-spacing:1px;
+    border-radius:12px; white-space:nowrap; box-shadow:0 4px 16px rgba(0,0,0,.5); }
+
+  /* 窄屏 HUD 紧凑化：小地图、记分牌、时钟三者不能互相压 */
+  @media (max-width:700px) {
+    #minimap, body.touch-mode #minimap { width:auto; padding:4px; }
+    #minimap canvas, body.touch-mode #minimap canvas { width:110px; height:72px; }
+    #clock, body.touch-mode #clock { font-size:24px; padding:8px 14px; }
+    #sb-card, body.touch-mode #sb-card { gap:8px; padding:8px 12px; }
+    #sb-card .teamname, body.touch-mode #sb-card .teamname { font-size:17px; gap:4px; }
+    #sb-card .badge, body.touch-mode #sb-card .badge { font-size:16px; }
+    #scoreboard .score, body.touch-mode #scoreboard .score { font-size:32px; min-width:34px; }
+    #scoreboard .vs, body.touch-mode #scoreboard .vs { font-size:13px; }
+    /* 窄窗下键盘提示块会压住右下角按钮，直接收起（键位可在“键位设置”里看） */
+    body.pc-mode #controls-hint { display:none !important; }
+  }
+  /* 低高度窗口/手机横屏：菜单纵向收紧，避免顶部被裁、底部按钮点不到 */
+  @media (max-height:720px) {
+    #menu-title { font-size:40px; letter-spacing:3px; margin-bottom:0; }
+    #menu-sub { margin-bottom:10px; }
+    .team-cards { margin-bottom:10px; }
+    .team-card .tball { display:none; }
+    .face-strip { margin-bottom:10px; }
+    .face-strip img { width:54px; height:54px; }
+    .diff-row { margin-bottom:10px; }
+    body.touch-mode #controls-info { font-size:12px; line-height:1.6; margin-top:8px; }
+  }
+  /* 拖动编辑模式：面板/菜单先让开，把触屏控件抬到最上层，否则按钮被面板盖住根本拖不到 */
+  body.drag-mode #keys-panel { display:none !important; }
+  body.drag-mode .overlay { display:none !important; }
+  body.drag-mode #joy-zone, body.drag-mode #btn-zone { z-index:95 !important; }
+  #drag-done { display:none; position:fixed; left:50%; transform:translateX(-50%);
+    top:calc(env(safe-area-inset-top,0px) + 12px); z-index:99; padding:10px 22px; border-radius:14px;
+    background:linear-gradient(160deg,#12a35a,#0b6b3d); color:#fff; font-weight:900; font-size:16px; letter-spacing:1px;
+    border:2px solid rgba(255,255,255,.35); box-shadow:0 8px 24px rgba(0,0,0,.5); cursor:pointer; }
+  body.drag-mode #drag-done { display:block; }
+  /* 极窄竖屏（<=420px）：收紧按钮区，避免和摇杆叠在一起 */
+  @media (max-width:420px) {
+    body.touch-mode #btn-zone { gap:7px; padding:8px; }
+    body.touch-mode #joy-zone { max-width:46vw; max-height:46vw; }
+    body.touch-mode #minimap { display:none; }
+    body.touch-mode #scoreboard { left:8px; transform:none; text-align:left; }
+    body.touch-mode #clock { font-size:20px; padding:6px 12px; }
+    body.touch-mode #sb-card { gap:6px; padding:6px 10px; }
+    body.touch-mode #sb-card .teamname { font-size:16px; gap:2px; }
+    body.touch-mode #sb-card .badge { font-size:14px; }
+    body.touch-mode #scoreboard .score { font-size:28px; min-width:30px; }
+    body.touch-mode #scoreboard .vs { font-size:12px; }
+  }
 </style>
 </head>
 <body>
@@ -366,10 +452,12 @@
   <b>切换球员</b>：<span class="key">Tab</span> &nbsp; <b>镜头</b>：<span class="key">C</span> &nbsp; <b>暂停</b>：<span class="key">P</span><br>
   <b>防守</b>：贴身顶住持球人可卡位、正面冲上去可抢断
 </div>
-<button id="btn-mute" class="hud">🔊 音效</button>
-<button id="btn-cam" class="hud">📷 全景</button>
-<button id="btn-restart" class="hud">↺ 重新开局</button>
-<button id="btn-night" class="hud">🌙 夜场</button>
+<div id="side-tools">
+  <button id="btn-mute" class="hud">🔊 音效</button>
+  <button id="btn-cam" class="hud">📷 全景</button>
+  <button id="btn-restart" class="hud">↺ 重新开局</button>
+  <button id="btn-night" class="hud">🌙 夜场</button>
+</div>
 <div id="active-info" class="hud">▶ 你操控：#10 前锋</div>
 <div id="net-badge" class="hud">🌐 联机</div>
 <div id="commentary" class="hud"></div>
@@ -1187,6 +1275,8 @@ const ball = {
   lastTouch: 0,
   lastTouchPlayer: null,
   passTarget: null,    // 当前传球目标（会自动迎球停球）
+  lastKicker: null,    // 最后一个踢球的人（防止刚踢出就被自己捡回）
+  kickLock: 0,         // 踢球后的锁定期（秒）
   speed: 0
 };
 ball.mesh.castShadow = true;
@@ -1318,16 +1408,40 @@ function sfx(name){
 
 // ---------------- 输入 ----------------
 const keys = {};
+const KEYFOR = { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', sprint:'ShiftLeft' };
+const MOVE_CODES = ['KeyW','KeyS','KeyA','KeyD','ShiftLeft','ShiftRight','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Numpad8','Numpad2','Numpad4','Numpad6'];
+function defaultAct(code){
+  if(code==='Space'||code==='KeyJ') return 'shoot';
+  if(code==='KeyK'||code==='KeyE') return 'pass';
+  if(code==='Tab') return 'switch';
+  if(code==='KeyC') return 'camera';
+  if(code==='KeyP') return 'pause';
+  return null;
+}
+// 自定义键位模块加载后会注入 __ACT_OF；之前先用默认映射兜底
+function actOf(code){
+  if(window.__ACT_OF) return window.__ACT_OF(code);
+  return defaultAct(code);
+}
 window.addEventListener('keydown', e=>{
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab','Numpad8','Numpad2','Numpad4','Numpad6'].includes(e.code)) e.preventDefault();
-  keys[e.code] = true;
-  if((e.code==='Space'||e.code==='KeyJ') && G.state==='play' && !G.paused) userShoot();
-  if((e.code==='KeyK'||e.code==='KeyE') && G.state==='play' && !G.paused) userPass();
-  if(e.code==='Tab' && G.state==='play' && !G.paused) switchPlayer();
-  if(e.code==='KeyC') cycleCamera();
-  if(e.code==='KeyP') togglePause();
+  if(MOVE_CODES.indexOf(e.code)>=0 || e.code==='Tab') e.preventDefault();
+  const act = actOf(e.code);
+  if(act){
+    if(KEYFOR[act]){ keys[KEYFOR[act]] = true; return; }   // 移动类：映射到游戏内部读的那几个键
+    if(act==='shoot' && G.state==='play' && !G.paused) userShoot();
+    else if(act==='pass' && G.state==='play' && !G.paused) userPass();
+    else if(act==='switch' && G.state==='play' && !G.paused) switchPlayer();
+    else if(act==='camera') cycleCamera();
+    else if(act==='pause') togglePause();
+  } else if(MOVE_CODES.indexOf(e.code)<0){
+    keys[e.code] = true;
+  }
 });
-window.addEventListener('keyup', e=>{ keys[e.code]=false; });
+window.addEventListener('keyup', e=>{
+  keys[e.code] = false;
+  const act = actOf(e.code);
+  if(act && KEYFOR[act]) keys[KEYFOR[act]] = false;
+});
 window.addEventListener('resize', ()=>{
   camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
@@ -1356,7 +1470,8 @@ function userMove(dt){
     // 传球朝你飞来 / 无主球滚到身边：不操作也自动迎球
     G.idleT = 0;
     moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
-    if(!ball.owner && ball.speed<22 && dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+1.6){
+    if(!ball.owner && ball.speed<22 && !(ball.lastKicker===p && ball.kickLock>0) &&
+       dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+1.6){
       ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
       ball.vel.x=0; ball.vel.y=0; ball.vel.z=0;
     }
@@ -1407,7 +1522,7 @@ function autoPlayUser(p, dt, blend){
     const looseNear = !ball.owner && dBall<12 && ball.speed<20;
     if(myPassTarget || looseNear || (oppOwns && (p===nearestPlayer(myTeam) || dBall<16))){
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true, sp);
-      if(!ball.owner && ball.speed<22 && dBall<PICKUP_R+1.3){
+      if(!ball.owner && ball.speed<22 && !(ball.lastKicker===p && ball.kickLock>0) && dBall<PICKUP_R+1.3){
         ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
       }
     } else {
@@ -1433,6 +1548,9 @@ function shootToward(p, tx, tz, power, loft){
   ball.owner = null;
   ball.lastTouch = p.team;
   ball.lastTouchPlayer = p;
+  ball.lastKicker = p;
+  ball.lastKickTime = G.time || 0;
+  ball.kickLock = 0.30;                              // 0.3 秒内踢球者自己不能捡回（传球不会“传给自己”）
   p.owns = false;
   ball.speed = Math.hypot(ball.vel.x, ball.vel.z);   // 关键：射门/传球后立即刷新球速，否则拾球逻辑会把球瞬间捡回
   if(loft>=1.0){ ball.wasShot=true; G.stats.shots[p.team]++; } else { ball.wasShot=false; }
@@ -1738,7 +1856,9 @@ function bestPassTarget(p, team){
     if(pressure>1.4) continue;                   // 被包夹不传
     const forward = dx*s;                         // 越靠前越有威胁
     const isUser = t.team===G.userTeam && t.idx===G.activeIdx;
-    const sc = d - forward*0.75 + pressure*9 - (t.role==='ST'?5:0) - (isUser?7:0) + (Math.random()-0.5)*4;   // 轻微随机，队友更愿意传给你
+    // 刚把球传给我的人：1.5 秒内大幅降权，避免 A→B→A 原地乒乓球
+    const back = (t===ball.lastKicker && (G.time||0) - (ball.lastKickTime||0) < 1.5) ? 12 : 0;
+    const sc = d - forward*0.75 + pressure*9 - (t.role==='ST'?5:0) - (isUser?7:0) + back + (Math.random()-0.5)*4;   // 轻微随机，队友更愿意传给你
     if(sc<bsc){ bsc=sc; best=t; }
   }
   return best;
@@ -1868,17 +1988,27 @@ function updateTeammateAI(team, dt){
       continue;
     }
     if(p.owns){
-      // 靠近对方球门时直接射门，否则回传给玩家
+      // 靠近对方球门时直接射门；否则找空位传球，实在没有靠谱点就自己带球推进
       const gx = oppGoalX(G.userTeam);
       const distGoal = Math.abs(gx - p.pos.x);
       if(distGoal < 19 && Math.abs(p.pos.z) < 15){
         const targetZ = (Math.random()<0.5?-1:1)*(1.5 + Math.random()*2.6);
         shootToward(p, gx, targetZ, 22 + Math.random()*4, 1.0 + Math.random()*1.8);
       } else {
-        // 找最佳传球点（优先空位前锋/玩家），传向空档
         let t = bestPassTarget(p, team);
-        if(!t) t = team[G.activeIdx];
-        passTo(p, t, 20);
+        if(!t){
+          // 没有靠谱传球点：只有玩家确实在附近且没被贴身才回做，否则自己带球往前推
+          // （原来这里无条件传给玩家，导致“队友→你→队友”来回倒脚、甚至球又滚回自己脚下）
+          const mate = team[G.activeIdx];
+          const dm = mate ? dist2D(mate.pos.x, mate.pos.z, p.pos.x, p.pos.z) : 999;
+          if(mate && mate !== p && dm < 14 && !enemyNear(mate, 2.2)) t = mate;
+        }
+        if(t){
+          passTo(p, t, 20);
+        } else {
+          const s = p.side===0? 1 : -1;
+          moveAI(p, { x: gx - s*8, z: clamp(p.pos.z + (Math.random()-0.5)*3, -13, 13) }, dt, false);
+        }
       }
     } else if(oppOwns && chasers.has(p)){
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
@@ -1901,7 +2031,7 @@ function updateTeammateAI(team, dt){
       const dSup = dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z);
       if(dSup < dUser - 1.5 || (dSup<10 && ball.speed<18)){
         moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
-        if(!ball.owner && ball.speed<22 && dSup<PICKUP_R+1.0){
+        if(!ball.owner && ball.speed<22 && !(ball.lastKicker===p && ball.kickLock>0) && dSup<PICKUP_R+1.0){
           ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
         }
       } else {
@@ -1919,6 +2049,7 @@ function updateTeammateAI(team, dt){
 // ---------------- 球物理 ----------------
 function updateBall(dt){
   const b = ball;
+  if(b.kickLock > 0){ b.kickLock -= dt; if(b.kickLock < 0) b.kickLock = 0; }
   if(b.owner){
     const o = b.owner;
     const bx = o.pos.x + Math.cos(o.facing)*1.0;
@@ -2577,6 +2708,7 @@ function runFrame(dt){
     // 玩家操控
     if(activePlayer) userMove(dt);
     if(!ball.owner && ball.speed<22 && activePlayer &&
+       !(ball.lastKicker===activePlayer && ball.kickLock>0) &&
        dist2D(activePlayer.pos.x,activePlayer.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+2.0){
       ball.owner=activePlayer; activePlayer.owns=true;
       ball.passTarget=null; G.oppPasses=0; activePlayer.decideT=0.1;
@@ -2658,7 +2790,7 @@ window.addEventListener('load', ()=>{
   var hint = document.getElementById('controls-hint');
   if(isPhone && hint) hint.style.display = 'none';
   var info = document.getElementById('controls-info');
-  if(IS_TOUCH && info) info.innerHTML = '🕹 左摇杆拖动 = 移动（推满加速）<br>右按钮：⚽射门 🎯传球 ⇄切换 💨冲刺 📷镜头 ⏸暂停';
+  if(IS_TOUCH && info) info.innerHTML = '🕹 左摇杆拖动 = 移动（推满加速）<br>右按钮：⚽射门 🎯传球 ⇄切换 💨冲刺 📷镜头 ⏸暂停<br><span style="font-size:.86em;opacity:.75">↻ 建议横屏，竖屏也能玩</span>';
 
   // ---------- 虚拟摇杆：8向 + 中心死区 + 视觉平滑 ----------
   var joy = document.getElementById('joy-zone');
@@ -2790,7 +2922,13 @@ window.addEventListener('load', ()=>{
     var tip = document.getElementById('rotate-tip');
     if(tip){
       var portrait = window.innerHeight > window.innerWidth;
-      tip.style.display = (IS_TOUCH && portrait && G.state!=='menu' && G.state!=='end') ? 'block' : 'none';
+      // 竖屏提示改用文字写进操作说明，这里不再浮层（浮层会压住底部按钮和说明）
+      tip.style.display = 'none';
+    }
+    // 触屏/键盘切换按钮只在菜单和结算显示：比赛中绝不压在按钮区
+    var msw = document.getElementById('mode-switch');
+    if(msw && IS_TOUCH){
+      msw.style.display = (G.state==='menu' || G.state==='end') ? 'block' : 'none';
     }
   }, 300);
 
@@ -2840,20 +2978,19 @@ window.addEventListener('load', ()=>{
       .replace('ArrowUp','↑').replace('ArrowDown','↓').replace('ArrowLeft','←').replace('ArrowRight','→')
       .replace('ControlLeft','Ctrl').replace('ControlRight','Ctrl').replace('Enter','回车').replace('Escape','Esc');
   }
-  function actionOf(code){ for(var k in B){ if(B[k]===code) return k; } return null; }
-  window.addEventListener('keydown', function(e){
-    var a = actionOf(e.code); if(!a) return;
-    if(MOVE[a]){ keys[MOVE[a]] = true; return; }
-    if(a==='shoot'  && B.shoot!==e.code  && G.state==='play' && !G.paused) userShoot();
-    else if(a==='pass'    && B.pass!==e.code    && G.state==='play' && !G.paused) userPass();
-    else if(a==='switch'  && B.switch!==e.code   && G.state==='play' && !G.paused) switchPlayer();
-    else if(a==='camera'  && B.camera!==e.code) cycleCamera();
-    else if(a==='pause'   && B.pause!==e.code)  togglePause();
-  });
-  window.addEventListener('keyup', function(e){
-    var a = actionOf(e.code);
-    if(a && MOVE[a]) keys[MOVE[a]] = false;
-  });
+  // 唯一的按键映射入口：默认输入处理器通过它取动作，避免“两套处理各管一半”导致改键无效
+  window.__ACT_OF = function(code){
+    for(var k in B){ if(B[k] && B[k]===code) return k; }        // 用户实际绑定优先
+    // 没改过的动作，保留原来的备用键
+    if(B.shoot===DEFAULTS.shoot && code==='KeyJ') return 'shoot';
+    if(B.pass===DEFAULTS.pass && code==='KeyE') return 'pass';
+    if(B.up===DEFAULTS.up && (code==='ArrowUp'||code==='Numpad8')) return 'up';
+    if(B.down===DEFAULTS.down && (code==='ArrowDown'||code==='Numpad2')) return 'down';
+    if(B.left===DEFAULTS.left && (code==='ArrowLeft'||code==='Numpad4')) return 'left';
+    if(B.right===DEFAULTS.right && (code==='ArrowRight'||code==='Numpad6')) return 'right';
+    if(B.sprint===DEFAULTS.sprint && code==='ShiftRight') return 'sprint';
+    return null;
+  };
   var capturing = null;
   function save(){ try{ localStorage.setItem('zhuj_bind_v1', JSON.stringify(B)); }catch(_){} }
   // ---- 触屏布局偏好 ----
@@ -2889,21 +3026,54 @@ window.addEventListener('load', ()=>{
   }
   // ---- 触屏按钮拖动定位 ----
   var dragEdit = false;
+  var DRAG_IDS = ['joy-zone','t-shoot','t-pass','t-switch','t-sprint','t-cam','t-pause'];
+  function isFixed(el){ return getComputedStyle(el).position === 'fixed'; }
+  function off(el, k){ return parseFloat(el.style.getPropertyValue(k)) || 0; }
+  // 按钮位置越界夹回：换分辨率 / 横竖屏切换后，拖动保存的坐标很可能落到屏幕外
+  function clampBtn(el){
+    var r = el.getBoundingClientRect();
+    if(!r.width || !r.height) return;                    // 隐藏状态下不处理
+    var x = Math.max(0, Math.min(window.innerWidth - r.width, r.left));
+    var y = Math.max(0, Math.min(window.innerHeight - r.height, r.top));
+    if(Math.abs(x - r.left) > 1 || Math.abs(y - r.top) > 1){
+      if(isFixed(el)){
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        el.style.right = 'auto'; el.style.bottom = 'auto';
+      } else {
+        // 网格按钮靠 --tdx/--tdy 偏移，这里把偏移量往回修
+        el.style.setProperty('--tdx', (off(el,'--tdx') + x - r.left) + 'px');
+        el.style.setProperty('--tdy', (off(el,'--tdy') + y - r.top) + 'px');
+      }
+    }
+  }
+  function clampAll(){ DRAG_IDS.forEach(function(id){ var el = document.getElementById(id); if(el) clampBtn(el); }); }
   function loadBtnPos(){
     var pos = {};
     try{ pos = JSON.parse(localStorage.getItem('zhuj_btnpos_v1')||'{}'); }catch(_){}
     Object.keys(pos).forEach(function(id){
-      var el = document.getElementById(id);
-      if(el){ el.style.left = pos[id].x; el.style.top = pos[id].y; el.style.right = 'auto'; el.style.bottom = 'auto'; }
+      var el = document.getElementById(id); var v = pos[id];
+      if(!el || !v) return;
+      if(isFixed(el)){                                   // 摇杆：绝对坐标
+        if(v.x && v.y){ el.style.left = v.x; el.style.top = v.y; el.style.right = 'auto'; el.style.bottom = 'auto'; }
+      } else {                                           // 网格按钮：位移偏移
+        el.style.setProperty('--tdx', v.dx || '0px');
+        el.style.setProperty('--tdy', v.dy || '0px');
+      }
     });
+    setTimeout(clampAll, 300);
   }
   function saveBtnPos(id, el){
     var all = {};
     try{ all = JSON.parse(localStorage.getItem('zhuj_btnpos_v1')||'{}'); }catch(_){}
-    all[id] = { x: el.style.left, y: el.style.top };
+    if(isFixed(el)) all[id] = { x: el.style.left, y: el.style.top };
+    else all[id] = { dx: el.style.getPropertyValue('--tdx') || '0px', dy: el.style.getPropertyValue('--tdy') || '0px' };
     try{ localStorage.setItem('zhuj_btnpos_v1', JSON.stringify(all)); }catch(_){}
   }
   loadBtnPos();
+  window.addEventListener('resize', function(){
+    clearTimeout(window.__btnClampT);
+    window.__btnClampT = setTimeout(clampAll, 250);
+  });
   function makeDraggable(id){
     var el = document.getElementById(id); if(!el) return;
     el.addEventListener('pointerdown', function(e){
@@ -2911,12 +3081,23 @@ window.addEventListener('load', ()=>{
       e.preventDefault(); e.stopPropagation();
       var r = el.getBoundingClientRect();
       var offX = e.clientX - r.left, offY = e.clientY - r.top;
+      var fixed = isFixed(el);
+      var dx0 = off(el, '--tdx'), dy0 = off(el, '--tdy');
+      var sx = e.clientX, sy = e.clientY;
       function mv(ev){
-        var x = ev.clientX - offX, y = ev.clientY - offY;
-        x = Math.max(0, Math.min(window.innerWidth - r.width, x));
-        y = Math.max(0, Math.min(window.innerHeight - r.height, y));
-        el.style.left = x + 'px'; el.style.top = y + 'px';
-        el.style.right = 'auto'; el.style.bottom = 'auto';
+        if(fixed){
+          var x = Math.max(0, Math.min(window.innerWidth - r.width, ev.clientX - offX));
+          var y = Math.max(0, Math.min(window.innerHeight - r.height, ev.clientY - offY));
+          el.style.left = x + 'px'; el.style.top = y + 'px';
+          el.style.right = 'auto'; el.style.bottom = 'auto';
+        } else {
+          var bl = r.left - dx0, bt = r.top - dy0;        // 未加偏移时的基准位置
+          var dx = dx0 + (ev.clientX - sx), dy = dy0 + (ev.clientY - sy);
+          dx = Math.max(-bl, Math.min(window.innerWidth - bl - r.width, dx));
+          dy = Math.max(-bt, Math.min(window.innerHeight - bt - r.height, dy));
+          el.style.setProperty('--tdx', dx + 'px');
+          el.style.setProperty('--tdy', dy + 'px');
+        }
       }
       function up(){
         window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
@@ -2925,7 +3106,7 @@ window.addEventListener('load', ()=>{
       window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
     });
   }
-  ['joy-zone','t-shoot','t-pass','t-switch','t-sprint','t-cam','t-pause'].forEach(makeDraggable);
+  DRAG_IDS.forEach(makeDraggable);
   function renderRows(){
     var box = document.getElementById('key-rows'); if(!box) return;
     box.innerHTML = '';
@@ -2948,18 +3129,54 @@ window.addEventListener('load', ()=>{
     if(db){ db.classList.toggle('on', dragEdit); db.textContent = dragEdit ? '✅ 拖动模式开（点完完成）' : '✋ 拖动按钮到任意位置'; }
     renderRows();
   };
-  window.closeKeys = function(){ var p = document.getElementById('keys-panel'); if(p) p.classList.add('hidden'); capturing = null; };
-  var _db = document.getElementById('opt-drag');
-  if(_db) _db.onclick = function(){
-    dragEdit = !dragEdit;
-    _db.classList.toggle('on', dragEdit);
-    _db.textContent = dragEdit ? '✅ 拖动模式开（直接拖按钮/摇杆）' : '✋ 拖动按钮到任意位置';
+  window.closeKeys = function(){
+    if(dragEdit) setDragMode(false);                 // 关面板必须退出拖动编辑，否则触屏按钮会被拖动层吞掉
+    var p = document.getElementById('keys-panel'); if(p) p.classList.add('hidden');
+    capturing = null;
+    var db = document.getElementById('opt-drag');
+    if(db){ db.classList.remove('on'); db.textContent = '✋ 拖动按钮到任意位置'; }
   };
-  window.keysReset = function(){ B = Object.assign({}, DEFAULTS); save(); TP = {btnsize:'m',joysize:'m',hand:'r'}; saveTP(); renderRows(); };
+  var _db = document.getElementById('opt-drag');
+  var doneBtn = document.createElement('div');
+  doneBtn.id = 'drag-done'; doneBtn.textContent = '✅ 完成（保存位置）';
+  document.body.appendChild(doneBtn);
+  function setDragMode(on){
+    dragEdit = !!on;
+    document.body.classList.toggle('drag-mode', dragEdit);
+    var db = document.getElementById('opt-drag');
+    if(db){ db.classList.toggle('on', dragEdit); db.textContent = dragEdit ? '✅ 拖动模式开（拖完点“完成”）' : '✋ 拖动按钮到任意位置'; }
+    if(dragEdit){
+      var p = document.getElementById('keys-panel'); if(p) p.classList.add('hidden');
+    } else {
+      var p2 = document.getElementById('keys-panel'); if(p2) p2.classList.remove('hidden');
+      renderAllOpts();
+    }
+  }
+  doneBtn.onclick = function(){ setDragMode(false); openKeys(); };
+  if(_db) _db.onclick = function(){ setDragMode(!dragEdit); };
+  window.keysReset = function(){
+    B = Object.assign({}, DEFAULTS); save();
+    TP = {btnsize:'m',joysize:'m',hand:'r'}; saveTP();
+    capturing = null;
+    // 拖动位置也一起恢复，否则“恢复默认”之后按钮还在上次拖到的地方
+    try{ localStorage.removeItem('zhuj_btnpos_v1'); }catch(_){}
+    DRAG_IDS.forEach(function(id){
+      var el = document.getElementById(id); if(!el) return;
+      el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = '';
+      el.style.removeProperty('--tdx'); el.style.removeProperty('--tdy');
+    });
+    dragEdit = false;
+    document.body.classList.remove('drag-mode');
+    var db = document.getElementById('opt-drag');
+    if(db){ db.classList.remove('on'); db.textContent = '✋ 拖动按钮到任意位置'; }
+    renderRows(); renderAllOpts();
+  };
   window.addEventListener('keydown', function(e){
     if(!capturing) return;
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();   // 录制时不要再触发游戏动作
     if(e.code === 'Escape'){ capturing = null; renderRows(); return; }
+    // 同一个键不能同时绑两个动作，否则会互相顶掉（先解绑冲突项，显示为“—”）
+    for(var k in B){ if(k !== capturing && B[k] === e.code) B[k] = ''; }
     B[capturing] = e.code; capturing = null; save(); renderRows();
   }, true);
 })();

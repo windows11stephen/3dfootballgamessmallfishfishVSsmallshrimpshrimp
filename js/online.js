@@ -119,12 +119,13 @@
     code: '', nick: '', oppNick: '',
     broker: '', mq: null, mqs: [], roomMq: null, roomSeen: false,
     rooms: {}, p2p: null, p2pOk: false, pc: null, p2pAt: 0, p2pRestarted: false,
+    p2pTries: 0, p2pTimer: null,
     myTeam: 0, remoteTeam: 1, remoteIdx: 9,
     remote: null,
     inp: { x: 0, y: 0, sp: 0 },
     act: [],
     lastSend: 0, lastInpAt: 0, lastInpRecv: 0, lastRecv: 0,
-    snaps: [], interpDelay: 0.16,
+    snaps: [], interpDelay: 0.16, clockOff: null, snapGap: 0,
     rtt: 0, pingAt: 0,
     bnKey: '', endShown: false, matchStarted: false,
     keepT: null, joinT: null, badgeT: 0
@@ -190,6 +191,8 @@
      - 直连建立失败/中途断开：自动继续用中继，玩家无感
      ============================================================ */
   var ICE = { iceServers: [
+    { urls: 'stun:stun.chat.bilibili.com:3478' },   // B 站 STUN（国内，实测可用、响应快）
+    { urls: 'stun:stun.hitv.com:3478' },            // 芒果 TV STUN（国内）
     { urls: 'stun:stun.miwifi.com:3478' },
     { urls: 'stun:stun.qq.com:3478' },
     { urls: 'stun:stun.l.google.com:19302' },
@@ -265,14 +268,8 @@
     p2pBind(pc.createDataChannel('g', { ordered: false, maxRetransmits: 0 }));
     pc.oniceconnectionstatechange = function(){
       var st = pc.iceConnectionState;
-      if(st === 'connected' || st === 'completed'){ NET.p2pOk = true; }
-      else if(st === 'failed'){
-        NET.p2pOk = false;
-        if(NET.role === 'host' && !NET.p2pRetry){
-          NET.p2pRetry = true;
-          setTimeout(function(){ NET.p2pRetry = false; if(NET.role === 'host' && NET.pc === pc) rtcHostStart(); }, 3000);
-        }
-      }
+      if(st === 'connected' || st === 'completed'){ NET.p2pOk = true; NET.p2pTries = 0; }
+      else if(st === 'failed'){ NET.p2pOk = false; retryRtc(pc); }
     };
     pc.createOffer()
       .then(function(o){ return pc.setLocalDescription(o); })
@@ -280,7 +277,22 @@
       .then(function(){
         if(!NET.code || !pc.localDescription) return;
         netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'rtc', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } }));
+        // 12 秒还没连上：换新端口再试一次（NAT 端口映射有时靠新端口才打穿）
+        clearTimeout(NET.p2pTimer);
+        NET.p2pTimer = setTimeout(function(){
+          if(NET.p2pOk || NET.pc !== pc) return;
+          var ice = pc.iceConnectionState;
+          if(ice === 'connected' || ice === 'completed') return;
+          retryRtc(pc);
+        }, 12000);
       }).catch(function(){});
+  }
+  function retryRtc(pc){
+    if(NET.role !== 'host' || NET.pc !== pc) return;
+    if((NET.p2pTries || 0) >= 2) return;          // 最多重试 2 次，避免无限循环
+    NET.p2pTries = (NET.p2pTries || 0) + 1;
+    clearTimeout(NET.p2pTimer);
+    setTimeout(function(){ if(NET.role === 'host' && NET.pc === pc) rtcHostStart(); }, 1200);
   }
   function rtcClientStart(desc){
     if(!rtcOK() || !desc) return;
@@ -579,6 +591,7 @@
     }
     NET.lastInpRecv = performance.now();
     NET.lastSend = 0; NET.snaps.length = 0;
+    NET.p2pTries = 0; clearTimeout(NET.p2pTimer);
     netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam }));
     closeOnline();
     showBadge();
@@ -632,6 +645,7 @@
     clampPlayer(p);
     // 拾球（与玩家同一规则）
     if(!ball.owner && ball.speed < 22 &&
+       !(ball.lastKicker === p && ball.kickLock > 0) &&
        dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R + 2.0){
       ball.owner = p; p.owns = true; ball.passTarget = null; G.oppPasses = 0; p.decideT = 0.1;
       ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
@@ -656,7 +670,7 @@
   function r1(v){ return Math.round(v * 10) / 10; }
   function hostPostTick(){
     var now = performance.now();
-    if(now - NET.lastSend > 82){
+    if(now - NET.lastSend > 58){
       NET.lastSend = now;
       var ps = new Array(22), n = 0;
       for(var ti=0; ti<2; ti++){
@@ -670,7 +684,7 @@
       var sg = (G.state === 'goal' && G.scorerPlayer) ? [G.scorerPlayer.team, G.scorerPlayer.idx] : null;
       var bo = ball.owner ? [ball.owner.team, ball.owner.idx] : null;
       sendSnap(JSON.stringify({
-        t:'s', st:G.state, sc:G.score, ck:r1(G.clock), hf:G.half, stt:r1(Math.max(0, G.stateT)),
+        t:'s', ts:Math.round(now), st:G.state, sc:G.score, ck:r1(G.clock), hf:G.half, stt:r1(Math.max(0, G.stateT)),
         bl:[r1(ball.pos.x), r1(ball.pos.y), r1(ball.pos.z)], bo:bo, sg:sg, bn:bn, ps:ps
       }));
     }
@@ -691,6 +705,7 @@
     NET.remoteTeam = 1 - NET.myTeam;
     G.userTeam = NET.myTeam;
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = ''; NET.camInit = false;
+    NET.clockOff = null; NET.snapGap = 0; NET.interpDelay = 0.16;
     startGame();
     closeOnline();
     showBadge();
@@ -698,12 +713,29 @@
   }
   function clientOnReset(){
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = '';
+    NET.clockOff = null; NET.snapGap = 0; NET.interpDelay = 0.16;
     startGame();
   }
   function clientOnSnapshot(o){
-    NET.lastRecv = performance.now();
-    NET.snaps.push({ s: o, t: NET.lastRecv / 1000 });
-    if(NET.snaps.length > 10) NET.snaps.shift();
+    var nowMs = performance.now();
+    NET.lastRecv = nowMs;
+    // 用主机的发送时间做时间轴（o.ts），不用接收时间：
+    // MQTT 中继经常一次补发好几帧，接收时间几乎相同 → 插值 k 乱跳 → 画面抽搐
+    var ts = (typeof o.ts === 'number') ? o.ts : nowMs;
+    var off = nowMs - ts;
+    if(NET.clockOff == null) NET.clockOff = off;
+    else NET.clockOff = NET.clockOff * 0.88 + off * 0.12;
+    var t = (ts + NET.clockOff) / 1000;
+    var prev = NET.snaps.length ? NET.snaps[NET.snaps.length - 1].t : -1;
+    if(t <= prev) t = prev + 0.001;   // 强制单调递增
+    if(prev > 0){
+      var gap = t - prev;
+      NET.snapGap = NET.snapGap ? NET.snapGap * 0.8 + gap * 0.2 : gap;
+      // 中继抖动大时自动加大缓冲，宁可多 50ms 也不要抽帧
+      NET.interpDelay = Math.min(0.45, Math.max(0.16, (NET.snapGap || 0.082) * 1.45));
+    }
+    NET.snaps.push({ s: o, t: t });
+    if(NET.snaps.length > 12) NET.snaps.shift();
   }
   function lerpAngle(a, b, k){
     var d = b - a;
@@ -715,6 +747,7 @@
     var snaps = NET.snaps;
     if(!snaps.length) return;
     var a = snaps[0], b = snaps[0];
+    if(!a.s || !a.s.ps) return;
     if(snaps.length > 1){
       var target = performance.now() / 1000 - NET.interpDelay;
       for(var i = snaps.length - 1; i > 0; i--){
@@ -724,15 +757,26 @@
     }
     var k = 1;
     if(a && b && b.t > a.t) k = Math.max(0, Math.min(1, (performance.now()/1000 - NET.interpDelay - a.t) / (b.t - a.t)));
-    var sa = a.s, sb = b.s;
+    var sa = a.s, sb = (b.s && b.s.ps) ? b.s : a.s;
     var n = 0;
+    var myIdx = G.activeIdx;
     for(var ti=0; ti<2; ti++){
       var arr = G.teams[ti];
       for(var i=0;i<arr.length;i++){
         var pa = sa.ps[n], pb = sb.ps[n]; n++;
+        if(!pa || !pb) continue;
         var p = arr[i];
-        p.pos.x = pa[0] + (pb[0] - pa[0]) * k;
-        p.pos.z = pa[1] + (pb[1] - pa[1]) * k;
+        var tx2 = pa[0] + (pb[0] - pa[0]) * k;
+        var tz2 = pa[1] + (pb[1] - pa[1]) * k;
+        if(ti === NET.myTeam && i === myIdx){
+          // 自己操控的球员：本地已预测移动过，这里只做平滑收敛，避免每帧被硬拽回去
+          var ex = tx2 - p.pos.x, ez = tz2 - p.pos.z;
+          var err = Math.hypot(ex, ez);
+          if(err > 6){ p.pos.x = tx2; p.pos.z = tz2; }          // 偏差过大（丢包/换人）直接对齐
+          else { p.pos.x += ex * 0.18; p.pos.z += ez * 0.18; }
+        } else {
+          p.pos.x = tx2; p.pos.z = tz2;
+        }
         p.facing = lerpAngle(pa[2], pb[2], k);
       }
     }
@@ -784,23 +828,51 @@
   function clientSendInput(){
     var now = performance.now();
     if(now - NET.lastInpAt < 55) return;
-    if(!NET.mq || !NET.mq.connected) return;
+    // 只要有一条通路在（直连通道 或 MQTT 中继）就必须发；之前只认 MQTT，
+    // 中继掉线时客机就完全动不了
+    var canP2P = NET.p2p && NET.p2p.readyState === 'open';
+    var canMq  = NET.mq && NET.mq.connected;
+    if(!canP2P && !canMq) return;
     NET.lastInpAt = now;
-    var dx = ((keys['KeyD'] || keys['ArrowRight']) ? 1 : 0) - ((keys['KeyA'] || keys['ArrowLeft']) ? 1 : 0);
-    var dz = ((keys['KeyS'] || keys['ArrowDown']) ? 1 : 0) - ((keys['KeyW'] || keys['ArrowUp']) ? 1 : 0);
+    var dx = ((keys['KeyD'] || keys['ArrowRight'] || keys['Numpad6']) ? 1 : 0) - ((keys['KeyA'] || keys['ArrowLeft'] || keys['Numpad4']) ? 1 : 0);
+    var dz = ((keys['KeyS'] || keys['ArrowDown'] || keys['Numpad2']) ? 1 : 0) - ((keys['KeyW'] || keys['ArrowUp'] || keys['Numpad8']) ? 1 : 0);
     var sp = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1 : 0;
     var act = '';
     while(NET.act.length) act += NET.act.shift();
     sendUp(dx + '|' + dz + '|' + sp + '|' + act);
     if(now - NET.pingAt > 2000){
       NET.pingAt = now;
-      if(!p2pSend('p' + Math.round(now))) NET.mq.publish(Rp(NET.code,'c2h'), 'p' + Math.round(now));
+      if(!p2pSend('p' + Math.round(now)) && canMq) NET.mq.publish(Rp(NET.code,'c2h'), 'p' + Math.round(now));
     }
+  }
+  // 客机本地预测：自己的球员先按同一套速度规则在本地走，再向主机快照平滑收敛。
+  // 主机仍是唯一权威，这里只影响客机自己的画面，不会改变任何游戏逻辑。
+  function clientPredict(dt){
+    if(!G || G.state !== 'play' || G.paused) return;
+    var arr = G.teams[NET.myTeam];
+    if(!arr) return;
+    var p = arr[G.activeIdx];
+    if(!p) return;
+    var dx = ((keys['KeyD'] || keys['ArrowRight'] || keys['Numpad6']) ? 1 : 0) - ((keys['KeyA'] || keys['ArrowLeft'] || keys['Numpad4']) ? 1 : 0);
+    var dz = ((keys['KeyS'] || keys['ArrowDown'] || keys['Numpad2']) ? 1 : 0) - ((keys['KeyW'] || keys['ArrowUp'] || keys['Numpad8']) ? 1 : 0);
+    var len = Math.hypot(dx, dz);
+    if(len > 0.01){
+      var spd = (keys['ShiftLeft'] || keys['ShiftRight']) ? (SPRINT_SPD + USER_SPRINT_BOOST) : WALK_SPD;
+      p.pos.x += dx/len * spd * dt;
+      p.pos.z += dz/len * spd * dt;
+      p.facing = Math.atan2(dz, dx);
+      p.velx = dx/len * spd; p.velz = dz/len * spd;
+    } else {
+      p.velx = 0; p.velz = 0;
+    }
+    if(typeof clampPlayer === 'function') clampPlayer(p);
+    p.updateMesh();
   }
   function clientFrame(dt){
     G.time += dt;
     clientSendInput();
-    applyInterp();
+    clientPredict(dt);     // 本地先走，手感立刻响应
+    applyInterp();         // 再用主机快照平滑收敛（主机仍是权威）
     if(typeof updateCamera === 'function') updateCamera(dt);
     if(typeof drawMinimap === 'function') drawMinimap();
     renderer.render(scene, camera);
