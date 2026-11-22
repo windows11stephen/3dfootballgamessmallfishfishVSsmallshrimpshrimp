@@ -125,7 +125,7 @@
     inp: { x: 0, y: 0, sp: 0 },
     act: [],
     lastSend: 0, lastInpAt: 0, lastInpRecv: 0, lastRecv: 0,
-    snaps: [], interpDelay: 0.16, clockOff: null, snapGap: 0,
+    snaps: [], interpDelay: 0.16, clockOff: null, snapGap: 0, snap: null, snapAt: 0,
     rtt: 0, pingAt: 0,
     bnKey: '', endShown: false, matchStarted: false,
     keepT: null, joinT: null, badgeT: 0
@@ -545,6 +545,7 @@
         var m = JSON.parse(payload);
         if(m.t === 'j') hostOnJoin(m);
         else if(m.t === 'sel'){ if(NET.role === 'host') hostOnCtl(m); }
+        else if(m.t === 'skip'){ if(NET.role === 'host' && G.state === 'replay') G.stateT = 0.001; }
         else if(m.t === 'rtcAns'){ if(NET.role === 'host') rtcHostAnswer(m.sdp); }
       }catch(_){}
       return;
@@ -645,13 +646,20 @@
     clampPlayer(p);
     // 拾球（与玩家同一规则）
     if(!ball.owner && ball.speed < 22 &&
-       !(ball.lastKicker === p && ball.kickLock > 0) &&
+       !(typeof selfPassLock === 'function' && selfPassLock(p)) &&
        dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R + 2.0){
       ball.owner = p; p.owns = true; ball.passTarget = null; G.oppPasses = 0; p.decideT = 0.1;
       ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
     }
     // 动作（与 userShoot / userPass 完全同一套参数）
-    if(NET.act.length && p.owns && G.state === 'play'){
+    // 客机的按键会晚 RTT/2 才到，如果这半拍里主机判定“没控球”，客机会白按一次；
+    // 所以球就在脚边时补一个宽容拾球，保证联机和单机一样按得动
+    if(NET.act.length && G.state === 'play'){
+      if(!p.owns && !ball.owner && ball.speed < 12 &&
+         dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R + 1.2){
+        ball.owner = p; p.owns = true; ball.passTarget = null; ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
+      }
+      if(!p.owns){ NET.act.length = 0; return; }
       var acts = NET.act.splice(0);
       for(var i=0;i<acts.length;i++){
         if(acts[i] === 's'){
@@ -670,14 +678,16 @@
   function r1(v){ return Math.round(v * 10) / 10; }
   function hostPostTick(){
     var now = performance.now();
-    if(now - NET.lastSend > 58){
+    // 直连时 30Hz 快照，中继时 18Hz；带速度字段，客机可以外推，不用靠延迟插值
+    var gap = NET.p2pOk ? 33 : 55;
+    if(now - NET.lastSend > gap){
       NET.lastSend = now;
       var ps = new Array(22), n = 0;
       for(var ti=0; ti<2; ti++){
         var arr = G.teams[ti];
         for(var i=0;i<arr.length;i++){
           var p = arr[i];
-          ps[n++] = [r1(p.pos.x), r1(p.pos.z), r1(p.facing)];
+          ps[n++] = [r1(p.pos.x), r1(p.pos.z), r1(p.facing), r1(p.velx || 0), r1(p.velz || 0)];
         }
       }
       var bn = (G.bannerT > 0 && el('banner-big')) ? [el('banner-big').textContent, (el('banner-sub')||{}).textContent || ''] : null;
@@ -685,7 +695,8 @@
       var bo = ball.owner ? [ball.owner.team, ball.owner.idx] : null;
       sendSnap(JSON.stringify({
         t:'s', ts:Math.round(now), st:G.state, sc:G.score, ck:r1(G.clock), hf:G.half, stt:r1(Math.max(0, G.stateT)),
-        bl:[r1(ball.pos.x), r1(ball.pos.y), r1(ball.pos.z)], bo:bo, sg:sg, bn:bn, ps:ps
+        bl:[r1(ball.pos.x), r1(ball.pos.y), r1(ball.pos.z), r1(ball.vel.x), r1(ball.vel.y), r1(ball.vel.z)],
+        bo:bo, sg:sg, bn:bn, ps:ps
       }));
     }
     var nb = el('net-badge');
@@ -705,6 +716,7 @@
     NET.remoteTeam = 1 - NET.myTeam;
     G.userTeam = NET.myTeam;
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = ''; NET.camInit = false;
+    NET.snap = null; NET.snapAt = 0; NET.lastSc = null; NET.lastClockTxt = '';
     NET.clockOff = null; NET.snapGap = 0; NET.interpDelay = 0.16;
     startGame();
     closeOnline();
@@ -713,29 +725,9 @@
   }
   function clientOnReset(){
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = '';
+    NET.snap = null; NET.snapAt = 0; NET.lastSc = null; NET.lastClockTxt = '';
     NET.clockOff = null; NET.snapGap = 0; NET.interpDelay = 0.16;
     startGame();
-  }
-  function clientOnSnapshot(o){
-    var nowMs = performance.now();
-    NET.lastRecv = nowMs;
-    // 用主机的发送时间做时间轴（o.ts），不用接收时间：
-    // MQTT 中继经常一次补发好几帧，接收时间几乎相同 → 插值 k 乱跳 → 画面抽搐
-    var ts = (typeof o.ts === 'number') ? o.ts : nowMs;
-    var off = nowMs - ts;
-    if(NET.clockOff == null) NET.clockOff = off;
-    else NET.clockOff = NET.clockOff * 0.88 + off * 0.12;
-    var t = (ts + NET.clockOff) / 1000;
-    var prev = NET.snaps.length ? NET.snaps[NET.snaps.length - 1].t : -1;
-    if(t <= prev) t = prev + 0.001;   // 强制单调递增
-    if(prev > 0){
-      var gap = t - prev;
-      NET.snapGap = NET.snapGap ? NET.snapGap * 0.8 + gap * 0.2 : gap;
-      // 中继抖动大时自动加大缓冲，宁可多 50ms 也不要抽帧
-      NET.interpDelay = Math.min(0.45, Math.max(0.16, (NET.snapGap || 0.082) * 1.45));
-    }
-    NET.snaps.push({ s: o, t: t });
-    if(NET.snaps.length > 12) NET.snaps.shift();
   }
   function lerpAngle(a, b, k){
     var d = b - a;
@@ -743,61 +735,45 @@
     while(d < -Math.PI) d += Math.PI * 2;
     return a + d * k;
   }
-  function applyInterp(){
-    var snaps = NET.snaps;
-    if(!snaps.length) return;
-    var a = snaps[0], b = snaps[0];
-    if(!a.s || !a.s.ps) return;
-    if(snaps.length > 1){
-      var target = performance.now() / 1000 - NET.interpDelay;
-      for(var i = snaps.length - 1; i > 0; i--){
-        if(snaps[i-1].t <= target){ a = snaps[i-1]; b = snaps[i]; break; }
-      }
-      if(a === b){ a = snaps[Math.max(0, snaps.length-2)]; b = snaps[snaps.length-1]; }
+  // 客机：只保留“最新一张快照 + 到达时刻”。渲染时按现在外推，
+  // 不再用“落后 interpDelay 的延迟插值”（那是画面慢半拍、对手像不动的根源）
+  function clientOnSnapshot(o){
+    if(!o || !o.ps) return;
+    var now = performance.now();
+    if(NET.snapAt){
+      var g = now - NET.snapAt;
+      NET.snapGap = NET.snapGap ? NET.snapGap * 0.8 + g * 0.2 : g;
     }
-    var k = 1;
-    if(a && b && b.t > a.t) k = Math.max(0, Math.min(1, (performance.now()/1000 - NET.interpDelay - a.t) / (b.t - a.t)));
-    var sa = a.s, sb = (b.s && b.s.ps) ? b.s : a.s;
-    var n = 0;
-    var myIdx = G.activeIdx;
-    for(var ti=0; ti<2; ti++){
-      var arr = G.teams[ti];
-      for(var i=0;i<arr.length;i++){
-        var pa = sa.ps[n], pb = sb.ps[n]; n++;
-        if(!pa || !pb) continue;
-        var p = arr[i];
-        var tx2 = pa[0] + (pb[0] - pa[0]) * k;
-        var tz2 = pa[1] + (pb[1] - pa[1]) * k;
-        if(ti === NET.myTeam && i === myIdx){
-          // 自己操控的球员：本地已预测移动过，这里只做平滑收敛，避免每帧被硬拽回去
-          var ex = tx2 - p.pos.x, ez = tz2 - p.pos.z;
-          var err = Math.hypot(ex, ez);
-          if(err > 6){ p.pos.x = tx2; p.pos.z = tz2; }          // 偏差过大（丢包/换人）直接对齐
-          else { p.pos.x += ex * 0.18; p.pos.z += ez * 0.18; }
-        } else {
-          p.pos.x = tx2; p.pos.z = tz2;
+    NET.lastRecv = now;
+    NET.snap = o;
+    NET.snapAt = now;
+    applySnapshotState(o);
+  }
+  // 比分/时钟/横幅这些低频状态：只在变化时写 DOM
+  function applySnapshotState(sb){
+    var newGoal = (!NET.lastSc || NET.lastSc[0] !== sb.sc[0] || NET.lastSc[1] !== sb.sc[1]);
+    if(newGoal){
+      NET.lastSc = [sb.sc[0], sb.sc[1]];
+      G.score[0] = sb.sc[0]; G.score[1] = sb.sc[1];
+      if(typeof updateScoreboard === 'function') updateScoreboard();
+      // 客机也要看到进球庆祝：给进球者挂 celebrateT，applyWorld 刷 mesh 时就会跳起来
+      if(sb.st === 'goal' && sb.sg){
+        var stm = G.teams[sb.sg[0]], sp = stm ? stm[sb.sg[1]] : null;
+        if(sp){
+          sp.celebrateT = 3.0;
+          if(typeof spawnConfetti === 'function') spawnConfetti(sp.pos.x, sp.pos.z, sb.sg[0]);
         }
-        p.facing = lerpAngle(pa[2], pb[2], k);
       }
     }
-    ball.pos.x = sa.bl[0] + (sb.bl[0] - sa.bl[0]) * k;
-    ball.pos.y = sa.bl[1] + (sb.bl[1] - sa.bl[1]) * k;
-    ball.pos.z = sa.bl[2] + (sb.bl[2] - sa.bl[2]) * k;
-    ball.owner = sb.bo ? G.teams[sb.bo[0]][sb.bo[1]] : null;
-    // 第一张快照：相机立刻对准球，避免客户端开局镜头停在菜单位置
-    if(!NET.camInit){ NET.camInit = true; camCur.x = ball.pos.x; camCur.y = 1.2; camCur.z = ball.pos.z; }
-    G.score[0] = sb.sc[0]; G.score[1] = sb.sc[1];
     G.clock = sb.ck; G.half = sb.hf;
     G.state = sb.st; G.stateT = sb.stt;
     G.scorerPlayer = sb.sg ? G.teams[sb.sg[0]][sb.sg[1]] : null;
-    for(var t2=0; t2<2; t2++){
-      var a2 = G.teams[t2];
-      for(var j=0;j<a2.length;j++) a2[j].updateMesh();
-    }
-    ball.mesh.position.set(ball.pos.x, ball.pos.y, ball.pos.z);
-    if(typeof updateScoreboard === 'function') updateScoreboard();
     var cm = Math.floor(Math.max(0, G.clock) / 60), cs = Math.floor(Math.max(0, G.clock) % 60);
-    var ce = el('clock'); if(ce) ce.textContent = String(cm).padStart(2,'0') + ':' + String(cs).padStart(2,'0');
+    var ctxt = String(cm).padStart(2,'0') + ':' + String(cs).padStart(2,'0');
+    if(NET.lastClockTxt !== ctxt){
+      NET.lastClockTxt = ctxt;
+      var ce = el('clock'); if(ce) ce.textContent = ctxt;
+    }
     var he = el('half-label'); if(he) he.textContent = G.half === 0 ? '上半场' : '下半场';
     if(sb.bn){
       var key = sb.bn[0] + '|' + sb.bn[1];
@@ -816,6 +792,65 @@
       showEndPanel();
     }
   }
+  // 世界同步：位置 = 最新快照 + 速度外推（按“现在”），再用误差平滑收束。
+  // 这样对手是连续移动的，球也贴着持球人脚下走，而不是每 55ms 跳一格。
+  function applyWorld(dt){
+    var s = NET.snap; if(!s || !s.ps) return;
+    var age = Math.min(0.26, Math.max(0, (performance.now() - NET.snapAt) / 1000));
+    var myIdx = G.activeIdx, n = 0;
+    for(var ti=0; ti<2; ti++){
+      var arr = G.teams[ti];
+      for(var i=0;i<arr.length;i++){
+        var pa = s.ps[n++]; if(!pa) continue;
+        var p = arr[i];
+        var tx = pa[0] + (pa[3] || 0) * age;
+        var tz = pa[1] + (pa[4] || 0) * age;
+        var dx = tx - p.pos.x, dz = tz - p.pos.z, e = Math.hypot(dx, dz);
+        if(ti === NET.myTeam && i === myIdx){
+          // 自己在本地已经预测走过，只有偏差超过死区才拉回来（避免被延迟一直拖住）
+          if(e > 5){ p.pos.x = tx; p.pos.z = tz; }
+          else if(e > 1.0){ p.pos.x += dx * 0.25; p.pos.z += dz * 0.25; }
+        } else {
+          if(e > 9){ p.pos.x = tx; p.pos.z = tz; }
+          else { var kk = Math.min(0.55, 0.18 + dt * 9); p.pos.x += dx * kk; p.pos.z += dz * kk; }
+          p.facing = lerpAngle(p.facing, pa[2], Math.min(1, 0.25 + dt * 8));
+        }
+      }
+    }
+    // 球：有主时贴脚下（本地零延迟），无主时按速度外推
+    if(s.bo){
+      var o = G.teams[s.bo[0]][s.bo[1]];
+      if(o){
+        ball.owner = o;
+        var bx = o.pos.x + Math.cos(o.facing) * 1.0;
+        var bz = o.pos.z + Math.sin(o.facing) * 1.0;
+        ball.pos.x += (bx - ball.pos.x) * 0.6;
+        ball.pos.z += (bz - ball.pos.z) * 0.6;
+        ball.pos.y += (0.34 - ball.pos.y) * 0.6;
+      }
+    } else {
+      ball.owner = null;
+      var bl = s.bl || [0, 0.34, 0];
+      var btx = bl[0] + (bl[3] || 0) * age;
+      var bty = bl[1] + (bl[4] || 0) * age;
+      var btz = bl[2] + (bl[5] || 0) * age;
+      var be = Math.hypot(btx - ball.pos.x, bty - ball.pos.y, btz - ball.pos.z);
+      if(be > 12){ ball.pos.x = btx; ball.pos.y = bty; ball.pos.z = btz; }
+      else {
+        ball.pos.x += (btx - ball.pos.x) * 0.55;
+        ball.pos.y += (bty - ball.pos.y) * 0.55;
+        ball.pos.z += (btz - ball.pos.z) * 0.55;
+      }
+      if(ball.pos.y < 0.34) ball.pos.y = 0.34;
+      ball.speed = Math.hypot(bl[3] || 0, bl[5] || 0);
+    }
+    if(!NET.camInit){ NET.camInit = true; camCur.x = ball.pos.x; camCur.y = 1.2; camCur.z = ball.pos.z; }
+    for(var t2=0; t2<2; t2++){
+      var a2 = G.teams[t2];
+      for(var j=0;j<a2.length;j++) a2[j].updateMesh();
+    }
+    ball.mesh.position.set(ball.pos.x, ball.pos.y, ball.pos.z);
+  }
   function showEndPanel(){
     var a = G.score[0], b = G.score[1];
     var t = el('end-title'), s = el('end-score'), m = el('end-msg'), lg = el('end-log');
@@ -827,7 +862,8 @@
   }
   function clientSendInput(){
     var now = performance.now();
-    if(now - NET.lastInpAt < 55) return;
+    // 输入频率：直连 50Hz、中继 25Hz（原来 18Hz，转身/变向明显慢半拍）
+    if(now - NET.lastInpAt < (NET.p2pOk ? 20 : 40)) return;
     // 只要有一条通路在（直连通道 或 MQTT 中继）就必须发；之前只认 MQTT，
     // 中继掉线时客机就完全动不了
     var canP2P = NET.p2p && NET.p2p.readyState === 'open';
@@ -839,6 +875,18 @@
     var sp = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1 : 0;
     var act = '';
     while(NET.act.length) act += NET.act.shift();
+    // 动作本地预演：按键当场出脚，别等主机往返回来才看到球动
+    var p = G.teams[NET.myTeam] ? G.teams[NET.myTeam][G.activeIdx] : null;
+    if(act && p && G.state === 'play' && ball.owner === p){
+      if(act.indexOf('s') >= 0){
+        var gx = oppGoalX(p.team);
+        var tz = (Math.random() < 0.5 ? -1 : 1) * (2.2 + Math.random() * 1.6);
+        shootToward(p, gx, tz, 28 + Math.random() * 4, 1.5 + Math.random() * 2);
+      } else if(act.indexOf('p') >= 0){
+        var t = bestPassTarget(p, G.teams[p.team]);
+        if(t) passTo(p, t, 20);
+      }
+    }
     sendUp(dx + '|' + dz + '|' + sp + '|' + act);
     if(now - NET.pingAt > 2000){
       NET.pingAt = now;
@@ -866,13 +914,22 @@
       p.velx = 0; p.velz = 0;
     }
     if(typeof clampPlayer === 'function') clampPlayer(p);
+    // 自己控球时把球钉在脚下（主机快照里的球权 + 本地预测的位置），球不会拖在身后
+    if(ball.owner === p){
+      ball.pos.x = p.pos.x + Math.cos(p.facing) * 1.0;
+      ball.pos.z = p.pos.z + Math.sin(p.facing) * 1.0;
+      ball.pos.y = 0.34;
+    }
     p.updateMesh();
   }
   function clientFrame(dt){
     G.time += dt;
     clientSendInput();
     clientPredict(dt);     // 本地先走，手感立刻响应
-    applyInterp();         // 再用主机快照平滑收敛（主机仍是权威）
+    applyWorld(dt);        // 用最新快照外推 + 平滑收束（主机仍是权威）
+    // 客机没有本地回放帧，但回放阶段要能看到“跳过回放”按钮（点了会让主机结束回放）
+    var sk = el('btn-skip-replay');
+    if(sk) sk.style.display = (G.state === 'replay') ? 'block' : 'none';
     if(typeof updateCamera === 'function') updateCamera(dt);
     if(typeof drawMinimap === 'function') drawMinimap();
     renderer.render(scene, camera);
@@ -962,6 +1019,11 @@
     if(NET.role === 'host' && NET.remote) return _mateAI(team.filter(function(p){ return p !== NET.remote; }), dt);
     return _mateAI(team, dt);
   };
+  var _skipReplay = window.skipReplay;
+  window.skipReplay = function(){
+    if(NET.role === 'client'){ sendUpJSON({ t:'skip' }); return; }
+    return _skipReplay.apply(this, arguments);
+  };
 
   // 断线自动回到菜单（客户端）
   window.netSelfTest = function(){
@@ -972,5 +1034,88 @@
       snaps: NET.snaps.length, rtt: NET.rtt,
       remote: NET.remote ? [NET.remote.team, NET.remote.idx, r1(NET.remote.pos.x), r1(NET.remote.pos.z)] : null
     };
+  };
+  // ---------------- 排位赛榜单（纯前端 · retained 公共主题） ----------------
+  // 每人一条 retained 主题 zhujcup2026/rank/<赛季>/<玩家ID>，榜单页用 + 通配一次性收齐。
+  // 不依赖自建后端；公共中继不可达时前端只看本机成绩。
+  var RANK_NS = NS + 'rank/';
+  var RANK_TIMEOUT = 7000;
+
+  function rankBroker(){
+    // 只取“最快连上的一路”，比 connectRelays 少等 2.5s
+    return new Promise(function(resolve){
+      var done = false, alive = [];
+      var finish = function(mq){
+        if(done) return; done = true;
+        alive.forEach(function(m){ if(m !== mq){ try{ m.close(); }catch(_){} } });
+        resolve(mq || null);
+      };
+      var timer = setTimeout(function(){ finish(null); }, RANK_TIMEOUT);
+      BROKERS.forEach(function(url){
+        var mq = new MiniMQTT(url, 'zhujr_' + Math.random().toString(36).slice(2, 8));
+        mq.connect(RANK_TIMEOUT).then(function(){
+          if(done){ try{ mq.close(); }catch(_){} return; }
+          clearTimeout(timer);
+          finish(mq);
+        }).catch(function(){ try{ mq.close(); }catch(_){} });
+        alive.push(mq);
+      });
+      setTimeout(function(){ clearTimeout(timer); finish(null); }, RANK_TIMEOUT);
+    });
+  }
+
+  function seasonKey(){
+    var d = new Date();
+    var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var dayNum = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - dayNum);          // 移到本周四（ISO 周归属）
+    var yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    var week = Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
+    return t.getUTCFullYear() + '-W' + (week < 10 ? '0' + week : week);
+  }
+
+  function rankParse(topic, payload){
+    try {
+      var o = JSON.parse(payload);
+      if(!o || !o.id || typeof o.p !== 'number' || !isFinite(o.p)) return null;
+      o.p = Math.max(0, Math.min(9999, Math.round(o.p)));
+      o.g = Math.max(0, Math.min(99, +o.g || 0));
+      o.c = Math.max(0, Math.min(99, +o.c || 0));
+      o.n = String(o.n || '匿名').slice(0, 10);
+      o.t = +o.t || 0;
+      o.s = String(o.s || seasonKey());
+      return o;
+    } catch(_){ return null; }
+  }
+
+  window.RANK = {
+    season: seasonKey,
+    submit: function(entry){
+      return rankBroker().then(function(mq){
+        if(!mq) return false;
+        var season = entry.s || seasonKey();
+        mq.publish(RANK_NS + season + '/' + entry.id, JSON.stringify(entry), true);
+        return sleep(1100).then(function(){ try{ mq.close(); }catch(_){} return true; });
+      }).catch(function(){ return false; });
+    },
+    fetch: function(season, cb){
+      season = season || seasonKey();
+      var got = {}, closed = false;
+      var finish = function(mq){
+        if(closed) return; closed = true;
+        try{ if(mq) mq.close(); }catch(_){}
+        var list = Object.keys(got).map(function(k){ return got[k]; });
+        cb(list);
+      };
+      rankBroker().then(function(mq){
+        if(!mq){ finish(null); return; }
+        mq.onmsg = function(topic, payload){
+          var o = rankParse(topic, payload);
+          if(o && o.s === season) got[o.id] = o;
+        };
+        mq.subscribe(RANK_NS + season + '/+');
+        setTimeout(function(){ finish(mq); }, 2600);
+      }).catch(function(){ finish(null); });
+    }
   };
 })();

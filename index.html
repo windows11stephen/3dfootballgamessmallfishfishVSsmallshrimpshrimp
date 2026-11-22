@@ -116,6 +116,28 @@
   #net-badge { top:176px; right:16px; left:auto; font-size:12px; font-weight:700; color:#9fe6ff;
     background:rgba(10,20,34,.82); border:1px solid rgba(92,200,255,.35); padding:6px 10px; border-radius:10px; display:none; }
   .touch-mode #net-badge { top:150px; right:10px; }
+  /* ---- 排位赛 ---- */
+  .online-row .diff-btn { padding-left:14px; padding-right:14px; }
+  #rank-panel { z-index:72; }
+  #rank-box { width:min(430px,92vw); padding:22px 20px; border-radius:20px; text-align:center;
+    background:linear-gradient(180deg, rgba(14,26,20,.96), rgba(6,12,10,.98));
+    border:1px solid rgba(255,210,90,.34); box-shadow:0 24px 70px rgba(0,0,0,.65); }
+  #rank-box h2 { font-size:21px; color:#ffe9a8; margin:0 0 4px; letter-spacing:2px; }
+  #rank-box .sub { font-size:12px; color:#a9b49a; margin-bottom:12px; line-height:1.7; }
+  .rank-line { display:flex; gap:8px; align-items:center; justify-content:center; margin:8px 0; }
+  .rank-line input { flex:1; min-width:0; padding:8px 12px; border-radius:10px; border:1px solid rgba(255,210,90,.32);
+    background:rgba(255,255,255,.06); color:#fff; font-size:14px; outline:none; }
+  .rank-msg { font-size:12px; color:#ffe9a8; min-height:17px; margin:4px 0; }
+  #rank-list { margin:8px 0 4px; text-align:left; max-height:min(38vh,240px); overflow-y:auto; }
+  .rk-row { display:flex; align-items:center; gap:8px; padding:7px 10px; margin:5px 0; border-radius:10px;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,210,90,.16); font-size:13px; color:#e8f0e2; }
+  .rk-row .pos { width:26px; font-weight:900; color:#ffe9a8; text-align:center; }
+  .rk-row .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rk-row .sc { font-weight:900; color:#ffd24a; }
+  .rk-row .dt { font-size:11px; color:#8d9a86; }
+  .rk-row.top1 { background:linear-gradient(90deg, rgba(255,200,60,.22), rgba(255,200,60,.06)); border-color:rgba(255,210,90,.6); }
+  .rk-row.me { box-shadow:inset 0 0 0 2px rgba(92,200,255,.55); }
+  .rk-empty { font-size:12px; color:#8d9a86; text-align:center; padding:14px 0; }
 
   #wc-trophy { font-size:70px; line-height:1; margin-bottom:6px; filter:drop-shadow(0 6px 24px rgba(232,185,60,.5)); }
   #menu-title { font-size:60px; font-weight:900; letter-spacing:8px;
@@ -205,7 +227,7 @@
   #stats { top:16px; right:16px; font-size:13px; font-weight:700; color:#ffe9c2; background:rgba(10,13,20,.8);
     border:1px solid rgba(232,185,60,.3); border-radius:10px; padding:6px 12px; z-index:20; text-align:right; line-height:1.7; }
   #stats b { color:#fff; }
-  #btn-skip-replay { bottom:150px; right:24px; pointer-events:auto; cursor:pointer; background:rgba(10,13,20,.85);
+  #btn-skip-replay { position:fixed; bottom:150px; right:24px; pointer-events:auto; cursor:pointer; background:rgba(10,13,20,.85);
     border:1px solid var(--wc-gold); color:#ffe9c2; border-radius:12px; padding:8px 16px; font-size:14px; font-weight:700; z-index:22; }
   #btn-night { bottom:16px; right:398px; }
   #squad-panel { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:60; background:rgba(4,6,10,.82); }
@@ -521,6 +543,7 @@
   </div>
   <div class="online-row">
     <button id="btn-online" class="diff-btn" onclick="openOnline()">🌐 联机对战</button>
+    <button id="btn-rank" class="diff-btn" onclick="openRank()">🏅 排位赛</button>
     <button class="diff-btn" onclick="openKeys()">⌨️ 键位设置</button>
   </div>
   <button id="btn-start" class="btn-primary" onclick="startGame()">⚽ 开 始 比 赛</button>
@@ -554,6 +577,25 @@
     <div class="on-row" style="margin-top:14px">
       <button class="on-btn" onclick="closeOnline()">返回</button>
       <button class="on-btn" onclick="netExitRoom()">退出联机</button>
+    </div>
+  </div>
+</div>
+
+<!-- 排位赛面板 -->
+<div id="rank-panel" class="overlay hidden">
+  <div id="rank-box">
+    <h2>🏅 排位赛</h2>
+    <div class="sub">固定规则：小鱼鱼队 · 困难模式 · 全场约 3 分钟<br>得分 = 进球 × 100 + 净胜球 × 10（净胜球为负按 0 计）</div>
+    <div class="rank-line"><span style="font-size:13px;color:#ffe9a8;white-space:nowrap">昵称</span>
+      <input id="rank-nick" maxlength="10" placeholder="你的昵称"></div>
+    <div class="rank-line">
+      <button class="on-btn primary" style="flex:1" onclick="rankBegin()">⚽ 开始排位</button>
+      <button class="on-btn" onclick="rankRefresh()">🔄 刷新榜单</button>
+    </div>
+    <div class="rank-msg" id="rank-msg"></div>
+    <div id="rank-list"><div class="rk-empty">点“刷新榜单”查看本赛季前 3</div></div>
+    <div class="rank-line" style="margin-top:10px">
+      <button class="on-btn" onclick="closeRank()">返回</button>
     </div>
   </div>
 </div>
@@ -607,6 +649,8 @@
     <div class="msg" id="end-msg"></div>
     <div id="end-log"></div>
     <button class="btn-primary" style="font-size:18px;padding:12px 44px" onclick="restartMatch()">再 来 一 局</button>
+    <button id="btn-rank-end" class="hidden" style="margin-top:10px;font-size:15px;padding:9px 26px;border-radius:12px;cursor:pointer;
+      background:rgba(255,210,90,.16);color:#ffe9a8;border:1px solid rgba(255,210,90,.5)" onclick="rankBackToMenu()">🏅 查看排位榜</button>
   </div>
 </div>
 
@@ -1275,8 +1319,7 @@ const ball = {
   lastTouch: 0,
   lastTouchPlayer: null,
   passTarget: null,    // 当前传球目标（会自动迎球停球）
-  lastKicker: null,    // 最后一个踢球的人（防止刚踢出就被自己捡回）
-  kickLock: 0,         // 踢球后的锁定期（秒）
+  lastKicker: null,    // 最后一个踢球的人（防止刚踢出的传球被自己立刻捡回）
   speed: 0
 };
 ball.mesh.castShadow = true;
@@ -1424,6 +1467,9 @@ function actOf(code){
   return defaultAct(code);
 }
 window.addEventListener('keydown', e=>{
+  // 输入框/昵称/房号里打字时，不拦截任何按键，也不触发游戏动作
+  const tg = e.target;
+  if(tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
   if(MOVE_CODES.indexOf(e.code)>=0 || e.code==='Tab') e.preventDefault();
   const act = actOf(e.code);
   if(act){
@@ -1449,6 +1495,15 @@ window.addEventListener('resize', ()=>{
 });
 
 // ---------------- 玩家操控 ----------------
+// 刚传出脚、且球就在身边还朝远处走时，踢球者不能立刻把球捡回来（避免“传球=传给自己”）。
+// 球离开身边、减速、或反弹回来（dot<0）就立刻解除，不占用手感。
+function selfPassLock(p){
+  if(!p || ball.lastKicker !== p || !ball.passTarget) return false;
+  if(ball.speed <= 2.5) return false;
+  const dx = ball.pos.x - p.pos.x, dz = ball.pos.z - p.pos.z;
+  if(Math.hypot(dx, dz) > PICKUP_R + 2.0) return false;
+  return (ball.vel.x * dx + ball.vel.z * dz) > 0;
+}
 function userMove(dt){
   const p = activePlayer;
   if(!p) return;
@@ -1470,7 +1525,7 @@ function userMove(dt){
     // 传球朝你飞来 / 无主球滚到身边：不操作也自动迎球
     G.idleT = 0;
     moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
-    if(!ball.owner && ball.speed<22 && !(ball.lastKicker===p && ball.kickLock>0) &&
+    if(!ball.owner && ball.speed<22 && !selfPassLock(p) &&
        dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+1.6){
       ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
       ball.vel.x=0; ball.vel.y=0; ball.vel.z=0;
@@ -1522,7 +1577,7 @@ function autoPlayUser(p, dt, blend){
     const looseNear = !ball.owner && dBall<12 && ball.speed<20;
     if(myPassTarget || looseNear || (oppOwns && (p===nearestPlayer(myTeam) || dBall<16))){
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true, sp);
-      if(!ball.owner && ball.speed<22 && !(ball.lastKicker===p && ball.kickLock>0) && dBall<PICKUP_R+1.3){
+      if(!ball.owner && ball.speed<22 && !selfPassLock(p) && dBall<PICKUP_R+1.3){
         ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
       }
     } else {
@@ -1550,7 +1605,6 @@ function shootToward(p, tx, tz, power, loft){
   ball.lastTouchPlayer = p;
   ball.lastKicker = p;
   ball.lastKickTime = G.time || 0;
-  ball.kickLock = 0.30;                              // 0.3 秒内踢球者自己不能捡回（传球不会“传给自己”）
   p.owns = false;
   ball.speed = Math.hypot(ball.vel.x, ball.vel.z);   // 关键：射门/传球后立即刷新球速，否则拾球逻辑会把球瞬间捡回
   if(loft>=1.0){ ball.wasShot=true; G.stats.shots[p.team]++; } else { ball.wasShot=false; }
@@ -1988,27 +2042,17 @@ function updateTeammateAI(team, dt){
       continue;
     }
     if(p.owns){
-      // 靠近对方球门时直接射门；否则找空位传球，实在没有靠谱点就自己带球推进
+      // 靠近对方球门时直接射门，否则回传给玩家
       const gx = oppGoalX(G.userTeam);
       const distGoal = Math.abs(gx - p.pos.x);
       if(distGoal < 19 && Math.abs(p.pos.z) < 15){
         const targetZ = (Math.random()<0.5?-1:1)*(1.5 + Math.random()*2.6);
         shootToward(p, gx, targetZ, 22 + Math.random()*4, 1.0 + Math.random()*1.8);
       } else {
+        // 找最佳传球点（优先空位前锋/玩家），传向空档
         let t = bestPassTarget(p, team);
-        if(!t){
-          // 没有靠谱传球点：只有玩家确实在附近且没被贴身才回做，否则自己带球往前推
-          // （原来这里无条件传给玩家，导致“队友→你→队友”来回倒脚、甚至球又滚回自己脚下）
-          const mate = team[G.activeIdx];
-          const dm = mate ? dist2D(mate.pos.x, mate.pos.z, p.pos.x, p.pos.z) : 999;
-          if(mate && mate !== p && dm < 14 && !enemyNear(mate, 2.2)) t = mate;
-        }
-        if(t){
-          passTo(p, t, 20);
-        } else {
-          const s = p.side===0? 1 : -1;
-          moveAI(p, { x: gx - s*8, z: clamp(p.pos.z + (Math.random()-0.5)*3, -13, 13) }, dt, false);
-        }
+        if(!t) t = team[G.activeIdx];
+        passTo(p, t, 20);
       }
     } else if(oppOwns && chasers.has(p)){
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
@@ -2031,7 +2075,7 @@ function updateTeammateAI(team, dt){
       const dSup = dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z);
       if(dSup < dUser - 1.5 || (dSup<10 && ball.speed<18)){
         moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
-        if(!ball.owner && ball.speed<22 && !(ball.lastKicker===p && ball.kickLock>0) && dSup<PICKUP_R+1.0){
+        if(!ball.owner && ball.speed<22 && dSup<PICKUP_R+1.0){
           ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
         }
       } else {
@@ -2049,7 +2093,6 @@ function updateTeammateAI(team, dt){
 // ---------------- 球物理 ----------------
 function updateBall(dt){
   const b = ball;
-  if(b.kickLock > 0){ b.kickLock -= dt; if(b.kickLock < 0) b.kickLock = 0; }
   if(b.owner){
     const o = b.owner;
     const bx = o.pos.x + Math.cos(o.facing)*1.0;
@@ -2708,7 +2751,7 @@ function runFrame(dt){
     // 玩家操控
     if(activePlayer) userMove(dt);
     if(!ball.owner && ball.speed<22 && activePlayer &&
-       !(ball.lastKicker===activePlayer && ball.kickLock>0) &&
+       !selfPassLock(activePlayer) &&
        dist2D(activePlayer.pos.x,activePlayer.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+2.0){
       ball.owner=activePlayer; activePlayer.owns=true;
       ball.passTarget=null; G.oppPasses=0; activePlayer.decideT=0.1;
@@ -3179,6 +3222,146 @@ window.addEventListener('load', ()=>{
     for(var k in B){ if(k !== capturing && B[k] === e.code) B[k] = ''; }
     B[capturing] = e.code; capturing = null; save(); renderRows();
   }, true);
+})();
+
+// ================= 排位赛（纯前端榜单） =================
+// 固定规则：小鱼鱼 · 困难 · 全场约 3 分钟；得分 = 进球*100 + 净胜球*10
+// 榜单跨人共享走 online.js 里的公共 MQTT retained 主题，无自建后端；中继不可达则退回本机榜。
+(function(){
+  var ID_KEY='zhuj_rank_id', NICK_KEY='zhuj_rank_nick', LOCAL_KEY='zhuj_rank_local_v1';
+  var pid = '';
+  try {
+    pid = localStorage.getItem(ID_KEY) || '';
+    if(!pid){ pid = 'p' + Math.random().toString(36).slice(2,10); localStorage.setItem(ID_KEY, pid); }
+  } catch(_){ pid = 'p' + Math.random().toString(36).slice(2,10); }
+
+  function el(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[<>&"]/g, function(c){
+    return c==='<'?'&lt;': c==='>'?'&gt;': c==='&'?'&amp;':'&quot;'; }); }
+  function msg(t, bad){ var m=el('rank-msg'); if(!m) return; m.textContent=t||''; m.style.color = bad? '#ff9d9d':'#ffe9a8'; }
+  function season(){ return (window.RANK && RANK.season) ? RANK.season() : 'local'; }
+  function nickname(){
+    var i = el('rank-nick');
+    var n = i ? String(i.value||'').trim() : '';
+    n = n.replace(/[<>&"']/g,'').slice(0,10);
+    if(!n){ try{ n = localStorage.getItem(NICK_KEY) || ''; }catch(_){} }
+    if(!n) n = '球员' + Math.floor(Math.random()*900+100);
+    if(i) i.value = n;
+    try{ localStorage.setItem(NICK_KEY, n); }catch(_){}
+    return n;
+  }
+  function localList(){
+    try { var a = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); return Array.isArray(a)? a : []; } catch(_){ return []; }
+  }
+  function localSave(e){
+    var a = localList();
+    var same = a.filter(function(x){ return x.id===e.id && x.s===e.s; })[0];
+    if(!same || e.p > same.p){
+      a = a.filter(function(x){ return !(x.id===e.id && x.s===e.s); });
+      a.push(e);
+    }
+    try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(a.slice(-20))); }catch(_){}
+  }
+  function merge(remote){
+    var map = {};
+    localList().forEach(function(x){ if(x && x.id) map[x.id] = x; });
+    (remote||[]).forEach(function(x){ if(x && x.id && (!map[x.id] || x.p > map[x.id].p)) map[x.id] = x; });
+    var list = Object.keys(map).map(function(k){ return map[k]; });
+    list.sort(function(a,b){ return (b.p-a.p) || (b.g-a.g) || ((a.t||0)-(b.t||0)); });
+    return list;
+  }
+  function render(list, note){
+    var box = el('rank-list'); if(!box) return;
+    var medals = ['🥇','🥈','🥉'];
+    var html = '';
+    list.slice(0,3).forEach(function(x,i){
+      html += '<div class="rk-row top'+(i+1)+(x.id===pid?' me':'')+'"><span class="pos">'+medals[i]+'</span>'+
+        '<span class="nm">'+esc(x.n)+'</span><span class="sc">'+x.p+' 分</span>'+
+        '<span class="dt">'+x.g+'-'+x.c+'</span></div>';
+    });
+    var meIdx = list.findIndex(function(x){ return x.id===pid; });
+    if(meIdx >= 3){
+      var me = list[meIdx];
+      html += '<div class="rk-row me"><span class="pos">#'+(meIdx+1)+'</span><span class="nm">'+esc(me.n)+'（你）</span>'+
+        '<span class="sc">'+me.p+' 分</span><span class="dt">'+me.g+'-'+me.c+'</span></div>';
+    }
+    if(!list.length) html = '<div class="rk-empty">本赛季还没有成绩，打一场就能上榜！</div>';
+    else html += '<div class="rk-empty">本赛季共 '+list.length+' 人上榜 · 公布前 3 名</div>';
+    box.innerHTML = html;
+    msg(note || ('本赛季 '+season()+' · 前 3 名公布'), false);
+  }
+
+  // 任何普通开局都退出排位身份，避免误传成绩
+  var _sg = window.startGame;
+  window.startGame = function(){
+    G.rankMode = false; G.rankSubmitted = false;
+    var rb = document.getElementById('btn-rank-end'); if(rb) rb.classList.add('hidden');
+    return _sg.apply(this, arguments);
+  };
+
+  window.openRank = function(){
+    var p = el('rank-panel'); if(p) p.classList.remove('hidden');
+    var n = el('rank-nick');
+    if(n && !n.value){ try{ n.value = localStorage.getItem(NICK_KEY) || ''; }catch(_){} }
+    render(merge([]), '正在拉取榜单…');
+    setTimeout(window.rankRefresh, 40);
+  };
+  window.closeRank = function(){ var p = el('rank-panel'); if(p) p.classList.add('hidden'); };
+
+  // 排位结算 → 回主菜单并打开榜单（普通结算面板没有回菜单按钮）
+  window.rankBackToMenu = function(){
+    var e = el('end'), m = el('menu'), b = el('btn-rank-end');
+    if(e) e.classList.add('hidden');
+    if(b) b.classList.add('hidden');
+    if(m) m.classList.remove('hidden');
+    G.state = 'menu'; G.rankMode = false; G.rankSubmitted = false;
+    window.openRank();
+  };
+
+  window.rankRefresh = function(){
+    if(!window.RANK){ render(merge([]), '联机模块未加载，只能看本机成绩'); return; }
+    msg('正在通过公共中继拉取榜单…');
+    RANK.fetch(season(), function(list){
+      if(!list){ render(merge([]), '公共中继暂时连不上，先显示本机成绩'); return; }
+      render(merge(list), '本赛季 '+season()+' · 前 3 名公布');
+    });
+  };
+
+  window.rankBegin = function(){
+    var nick = nickname();
+    window.closeRank();
+    selectTeam(0);
+    setDifficulty('hard');          // 统一难度，保证榜单可比
+    window.startGame();
+    G.rankMode = true; G.rankSubmitted = false;
+    if(typeof sayComment === 'function') sayComment('🏅 排位赛开始：小鱼鱼 vs 小虾虾（困难）');
+  };
+
+  setInterval(function(){
+    if(!G.rankMode) return;
+    if(G.state === 'menu'){ G.rankMode = false; return; }
+    if(G.state !== 'end' || G.rankSubmitted) return;
+    G.rankSubmitted = true;
+    var g = G.score[0], c = G.score[1];
+    var pts = Math.min(30, g) * 100 + Math.max(0, g-c) * 10;
+    var entry = { id: pid, n: nickname(), p: pts, g: g, c: c, s: season(), t: Date.now() };
+    localSave(entry);
+    var rb = el('btn-rank-end'); if(rb) rb.classList.remove('hidden');
+    var log = el('end-log');
+    if(log){
+      log.innerHTML = '<div style="color:#ffd24a;font-weight:900;margin-bottom:6px">🏅 排位得分 ' + pts +
+        ' 分（进球 ' + g + ' · 失球 ' + c + '）</div>' + log.innerHTML;
+    }
+    msg('正在上传成绩…');
+    if(window.RANK){
+      RANK.submit(entry).then(function(ok){
+        msg(ok ? ('已上榜 · 本赛季 '+entry.s+' · '+pts+' 分')
+               : ('公共中继未连通，成绩已存本机 · '+pts+' 分'), !ok);
+      });
+    } else {
+      msg('联机模块未加载，成绩已存本机 · '+pts+' 分', true);
+    }
+  }, 400);
 })();
 </script>
 </body>
