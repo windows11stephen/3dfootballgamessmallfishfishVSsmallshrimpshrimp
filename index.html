@@ -3262,6 +3262,13 @@ window.addEventListener('load', ()=>{
     }
     try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(a.slice(-20))); }catch(_){}
   }
+  // 旧版按周分赛季，本机还留着 2026-W47 这类旧标记；年度榜下统一并入当前赛季
+  function migrateLocal(){
+    if(!window.RANK) return;
+    var s = season(), a = localList(), changed = false;
+    a.forEach(function(x){ if(x && x.s && x.s !== s){ x.s = s; changed = true; } });
+    if(changed){ try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(a)); }catch(_){} }
+  }
   function isMe(x){ return !!(x && ((x.ids && x.ids.indexOf(pid) >= 0) || x.id === pid)); }
   // 同一个人玩多次（同昵称，可能换设备/换浏览器）只保留最高分，不重复占榜
   function merge(remote){
@@ -3303,7 +3310,7 @@ window.addEventListener('load', ()=>{
     var html = '';
     list.slice(0,3).forEach(function(x,i){
       html += '<div class="rk-row top'+(i+1)+(isMe(x)?' me':'')+'"><span class="pos">'+medals[i]+'</span>'+
-        '<span class="nm">'+esc(x.n)+'</span><span class="sc">'+x.p+' 分</span>'+
+        '<span class="nm">'+esc(x.n)+(isMe(x)?'（你）':'')+'</span><span class="sc">'+x.p+' 分</span>'+
         '<span class="dt">'+x.g+'-'+x.c+'</span></div>';
     });
     var meIdx = list.findIndex(function(x){ return isMe(x); });
@@ -3327,6 +3334,7 @@ window.addEventListener('load', ()=>{
   };
 
   window.openRank = function(){
+    migrateLocal();
     var p = el('rank-panel'); if(p) p.classList.remove('hidden');
     var n = el('rank-nick');
     if(n && !n.value){ try{ n.value = localStorage.getItem(NICK_KEY) || ''; }catch(_){} }
@@ -3364,6 +3372,7 @@ window.addEventListener('load', ()=>{
 
   window.rankRefresh = function(){
     if(!window.RANK){ render(merge([]), '联机模块未加载，只能看本机成绩'); return; }
+    migrateLocal();
     msg('正在通过公共中继拉取榜单…');
     RANK.fetch(season(), function(list){
       if(!list){ render(merge([]), '公共中继暂时连不上，先显示本机成绩'); return; }

@@ -1046,14 +1046,9 @@
     'wss://broker-cn.emqx.io:8084/mqtt'
   ];
 
+  // 年度榜：不再按周清零，避免周一零点榜单突然变空
   function seasonKey(){
-    var d = new Date();
-    var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    var dayNum = t.getUTCDay() || 7;
-    t.setUTCDate(t.getUTCDate() + 4 - dayNum);          // 移到本周四（ISO 周归属）
-    var yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-    var week = Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
-    return t.getUTCFullYear() + '-W' + (week < 10 ? '0' + week : week);
+    return String(new Date().getFullYear());
   }
 
   function rankParse(topic, payload){
