@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>zhuj杯 2026 · 3D 世界杯 V7.3</title>
+<title>zhuj杯 2026 · 3D 世界杯 V8.0.0</title>
 <style>
   :root{
     --wc-red:#e30613; --wc-darkred:#a30a12; --wc-gold:#e8b93c; --wc-white:#ffffff;
@@ -592,10 +592,14 @@
       <button class="on-btn primary" style="flex:1" onclick="rankBegin()">⚽ 开始排位</button>
       <button class="on-btn" onclick="rankRefresh()">🔄 刷新榜单</button>
     </div>
+    <div class="rank-line">
+      <button class="on-btn" onclick="rankUploadLocal()" style="flex:1">⬆ 上传本机最高分</button>
+    </div>
     <div class="rank-msg" id="rank-msg"></div>
     <div id="rank-list"><div class="rk-empty">点“刷新榜单”查看本赛季前 3</div></div>
     <div class="rank-line" style="margin-top:10px">
       <button class="on-btn" onclick="closeRank()">返回</button>
+      <a href="ranking.html" target="_blank" class="on-btn" style="text-decoration:none;display:inline-block;padding:9px 14px;border-radius:10px;border:1px solid rgba(255,210,90,.45);color:#ffe9a8;background:rgba(255,210,90,.10)">🏆 完整总榜</a>
     </div>
   </div>
 </div>
@@ -1385,7 +1389,14 @@ function resetPositions(kickoffTeam){
   }
   // 随机指定开球人：开球队随机一名非门将站到球旁发球，另随机一名队友在圈内接应
   const kt = G.teams[kickoffTeam].filter(p=>p.role!=='GK');
-  const taker = kt[(Math.random()*kt.length)|0];
+  // 联机时如果开球方是客机队，直接把球交给客机正在操控的人，
+  // 否则随机选到别人、AI 又跳过客机球员，开球就会僵在原地
+  let taker = null;
+  if(typeof NET !== 'undefined' && NET && NET.role === 'host' && NET.remote &&
+     kickoffTeam === NET.remoteTeam && kt.indexOf(NET.remote) >= 0){
+    taker = NET.remote;
+  }
+  if(!taker) taker = kt[(Math.random()*kt.length)|0];
   taker.setPos(0, (Math.random()<0.5? -1:1) * (0.3 + Math.random()*0.8));
   const mates = kt.filter(p=>p!==taker);
   const recv = mates[(Math.random()*mates.length)|0];
@@ -1554,8 +1565,8 @@ function autoPlayUser(p, dt, blend){
       p.decideT = 0.12 + Math.random()*0.15;   // 接球后快速响应，无"接球冷却"
       const nearEnemy = enemyNear(p, 1.5);
       const frontBlock = enemyInFront(p, 2.4);
-      if(distGoal < 17 && Math.random() > (frontBlock? 0.7:0.25)){
-        // 射门：门将出击就吊射，否则瞄门将反侧
+      if(distGoal < 22 && Math.abs(p.pos.z) < 20){
+        // 射门：门将出击就吊射，否则瞄门将反侧；到了能打的区域不再倒脚
         const gk = opp[0];
         const gkDistGoal = Math.abs(oppGoalX(gk.team) - gk.pos.x);
         if(gkDistGoal > 8){
@@ -1622,7 +1633,12 @@ function userPass(){
   if(!p || !p.owns || G.state!=='play') return;
   const arr = G.teams[p.team];
   const t = bestPassTarget(p, arr);
-  if(!t) return;
+  if(!t){
+    // 没有向前传球目标时，靠近球门就直接打门，避免按传球键没反应
+    const distGoal = Math.abs(oppGoalX(p.team) - p.pos.x);
+    if(distGoal < 26 && Math.abs(p.pos.z) < 20) userShoot();
+    return;
+  }
   passTo(p, t, 20);
 }
 function switchPlayer(){
@@ -1636,7 +1652,14 @@ function switchPlayer(){
     const d=dist2D(p.pos.x,p.pos.z, ball.pos.x, ball.pos.z);
     if(d<bd){ bd=d; bi=i; }
   }
-  if(bi>=0){ G.activeIdx=bi; updateActive(); sfx('btn'); }
+  if(bi>=0){
+    G.activeIdx=bi;
+    const np=arr[bi];
+    // 切人后默认面朝对方球门：否则新球员可能背对进攻方向，
+    // bestPassTarget 会按“身体前方”筛人，结果一传球就变成向后传。
+    np.facing = np.side===0 ? 0 : Math.PI;
+    updateActive(); sfx('btn');
+  }
 }
 
 // ---------------- 球员物理碰撞（可贴身卡位 / 挡人） ----------------
@@ -1710,6 +1733,8 @@ function nearestPlayer(team){
   let b=null, bd=1e9;
   for(const p of team){
     if(p.role==='GK') continue;
+    // 联机时客机操控的球员由输入驱动，AI 不能再抢着跑位/追球
+    if(p.remoteCtl) continue;
     const d=dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z);
     if(d<bd){ bd=d; b=p; }
   }
@@ -1770,13 +1795,15 @@ function updateOpponentAI(team, dt){
     // 玩家控球时，最近的 2 名防守者贴身盯防（增加对抗，但玩家仍可用速度/传球摆脱）
     const cands = [];
     for(const p of team){
-      if(p===chaser || p.role==='GK') continue;
+      if(p===chaser || p.role==='GK' || p.remoteCtl) continue;
       cands.push(p);
     }
     cands.sort((a,b)=> dist2D(a.pos.x,a.pos.z,ua.pos.x,ua.pos.z) - dist2D(b.pos.x,b.pos.z,ua.pos.x,ua.pos.z));
     cands.slice(0, G.difficulty==='hard'?2:1).forEach(p=> markers.add(p));   // 困难模式双人盯防
   }
   for(const p of team){
+    // 联机客机操控的球员：只认客机输入，AI 完全不碰（否则画面会两边各跑一套）
+    if(p.remoteCtl) continue;
     if(G.kickoffPlan && p===G.kickoffTaker && p.owns && G.kickoffT<1.0){
       const plan = G.kickoffPlan; G.kickoffPlan = null;
       if(plan==='short' && G.kickoffRecv && G.kickoffRecv!==p) passTo(p, G.kickoffRecv, 20);
@@ -1891,7 +1918,7 @@ function updateOpponentAI(team, dt){
 // ---------------- 传球 & 进攻跑位辅助 ----------------
 // 选择最佳传球目标：优先向前、无人盯防、位置好的队友
 function bestPassTarget(p, team){
-  let best=null, bsc=1e9;
+  let best=null, bsc=1e9, bestF=null, bf=1e9;
   const s = p.side===0? 1 : -1;
   const opp = G.teams[1-p.team];
   for(const t of team){
@@ -1899,8 +1926,9 @@ function bestPassTarget(p, team){
     const dx=t.pos.x-p.pos.x, dz=t.pos.z-p.pos.z;
     const d=Math.hypot(dx,dz);
     if(d<2.5 || d>48) continue;
+    const forward = dx*s;                         // 越靠前越有威胁
+    if(forward < -1.5) continue;                  // 硬禁止向后传（回传只由开球战术单独触发）
     const dot=(dx*Math.cos(p.facing)+dz*Math.sin(p.facing))/d;
-    if(dot<0.25) continue;                       // 只向前传
     let pressure=0;                              // 目标附近对手压力
     for(const e of opp){
       if(e.role==='GK') continue;
@@ -1908,14 +1936,16 @@ function bestPassTarget(p, team){
       if(ed<2.5) pressure += 1.3 - ed*0.4;
     }
     if(pressure>1.4) continue;                   // 被包夹不传
-    const forward = dx*s;                         // 越靠前越有威胁
     const isUser = t.team===G.userTeam && t.idx===G.activeIdx;
     // 刚把球传给我的人：1.5 秒内大幅降权，避免 A→B→A 原地乒乓球
     const back = (t===ball.lastKicker && (G.time||0) - (ball.lastKickTime||0) < 1.5) ? 12 : 0;
     const sc = d - forward*0.75 + pressure*9 - (t.role==='ST'?5:0) - (isUser?7:0) + back + (Math.random()-0.5)*4;   // 轻微随机，队友更愿意传给你
-    if(sc<bsc){ bsc=sc; best=t; }
+    if(dot >= -0.2 && sc<bsc){ bsc=sc; best=t; }
+    else if(dot < -0.2 && sc<bf){ bf=sc; bestF=t; }
   }
-  return best;
+  // 如果当前朝向导致没有“正前方”目标，退而求其次选一个仍然在进攻方向上的队友，
+  // 绝不把球传向身后。
+  return best || bestF;
 }
 // 领球传球：瞄准目标前方一点，让队友跑动接球（修传球接不住/传空的问题）
 function passTo(p, t, power){
@@ -2042,17 +2072,24 @@ function updateTeammateAI(team, dt){
       continue;
     }
     if(p.owns){
-      // 靠近对方球门时直接射门，否则回传给玩家
+      // 靠近对方球门时直接射门，否则优先找向前的队友；实在没目标就自己打门/向前解围
       const gx = oppGoalX(G.userTeam);
       const distGoal = Math.abs(gx - p.pos.x);
-      if(distGoal < 19 && Math.abs(p.pos.z) < 15){
-        const targetZ = (Math.random()<0.5?-1:1)*(1.5 + Math.random()*2.6);
-        shootToward(p, gx, targetZ, 22 + Math.random()*4, 1.0 + Math.random()*1.8);
+      if(distGoal < 23 && Math.abs(p.pos.z) < 19){
+        const targetZ = (Math.random()<0.5?-1:1)*(1.5 + Math.random()*2.8);
+        shootToward(p, gx, targetZ, 22 + Math.random()*5, 1.0 + Math.random()*1.8);
       } else {
         // 找最佳传球点（优先空位前锋/玩家），传向空档
         let t = bestPassTarget(p, team);
-        if(!t) t = team[G.activeIdx];
-        passTo(p, t, 20);
+        if(!t){
+          // 没有安全的前向目标：不再回传给身后的玩家，直接向前场打一脚
+          const s = p.side===0? 1 : -1;
+          const fx = s*(HALF_W-12);
+          if(distGoal < 32) shootToward(p, fx, (Math.random()-0.5)*10, 24, 2.2);
+          else shootToward(p, fx, (Math.random()-0.5)*18, 28, 3.8);
+        } else {
+          passTo(p, t, 20);
+        }
       }
     } else if(oppOwns && chasers.has(p)){
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
@@ -2131,6 +2168,19 @@ function updateBall(dt){
   }
   if(b.pos.z > HALF_H){ if(b.wasShot){ sayComment('😩 射门打飞了！'); b.wasShot=false; } startThrowIn(HALF_H, b.pos.x); return; }
   if(b.pos.z < -HALF_H){ if(b.wasShot){ sayComment('😩 射门打飞了！'); b.wasShot=false; } startThrowIn(-HALF_H, b.pos.x); return; }
+  // 门将站位：门将不能一直站在 6 米外（原 homeX=-46，球门在 -52.5，扑救判定距离永远够不到）。
+  // 球进入最后 10 米时把门将拉回门线附近，并跟着球的 z 移动。
+  if(!b.owner && Math.abs(b.pos.x) > HALF_W - 10){
+    const defTeam = b.pos.x > 0 ? 1 : 0;
+    const gk0 = G.teams[defTeam][0];
+    const gx0 = b.pos.x > 0 ? HALF_W : -HALF_W;
+    if(gk0){
+      const lineX = gx0 - Math.sign(gx0) * 1.15;
+      gk0.pos.x += (lineX - gk0.pos.x) * Math.min(1, 10*dt);
+      gk0.pos.z += (clamp(b.pos.z, -4.2, 4.2) - gk0.pos.z) * Math.min(1, 8*dt);
+      gk0.facing = b.pos.x > gk0.pos.x ? 0 : Math.PI;
+    }
+  }
   // 门将扑救（球逼近球门时的自由球）
   if(!b.owner && Math.abs(b.pos.x) > HALF_W - 7.5 && b.pos.y < GOAL_H){
     const towardPlus = b.pos.x > 0 && b.vel.x > 1;
@@ -2140,15 +2190,16 @@ function updateBall(dt){
       const gk = G.teams[gkTeam][0];
       const goalX = towardPlus? HALF_W : -HALF_W;
       const dz = ball.pos.z - gk.pos.z;
-      const step = Math.min(11*dt, Math.abs(dz));
+      const isMyGK = gk.team === G.userTeam;
+      const step = Math.min((isMyGK?22:15)*dt, Math.abs(dz));
       gk.pos.z += Math.sign(dz)*step;
       gk.facing = ball.pos.x>gk.pos.x? 0 : Math.PI;
-      gk.velx=0; gk.velz = Math.sign(dz)*11;
+      gk.velx=0; gk.velz = Math.sign(dz)*step/Math.max(dt,0.001);
       clampPlayer(gk);
       const d = dist2D(gk.pos.x, gk.pos.z, ball.pos.x, ball.pos.z);
-      if(d < 1.45 && b.speed < 24){
-        const base = gk.team===G.userTeam? 0.6 : 0.4;   // 我方门将更可靠(60%)，对方(40%)
-        const prob = d < 1.0? base : base*0.44;
+      if(d < (isMyGK?2.15:1.65) && b.speed < 24){
+        const base = isMyGK ? 0.88 : 0.30;   // 我方门将明显更可靠；对方门将不再像一堵墙
+        const prob = d < (isMyGK?1.2:1.0)? base : base*0.55;
         if(Math.random() < prob){
           if(b.speed > 13){
             // 快球：门将大脚解围（朝前场、小偏移，尽量不出界）或扑向两侧
@@ -2277,6 +2328,36 @@ function showBanner(big, sub){
 function hideBanner(){
   document.getElementById('banner-big').style.opacity = 0;
   document.getElementById('banner-sub').style.opacity = 0;
+}
+// 回放连续帧插值：按 0~1 的播放进度取相邻两帧做线性插值，
+// 不再 15fps 硬跳帧，也不会播到末尾后突然 loop 回第一帧造成“闪一下”。
+function applyReplayAt(frames, raw){
+  if(!frames || !frames.length) return;
+  const len = frames.length;
+  const i0 = Math.max(0, Math.min(len-1, Math.floor(raw)));
+  const i1 = Math.min(len-1, i0+1);
+  const a = Math.max(0, Math.min(1, raw-i0));
+  const fa = frames[i0], fb = frames[i1] || fa;
+  for(const rec of fa.players){
+    const p = G.teams[rec.t] && G.teams[rec.t][rec.i];
+    if(!p) continue;
+    let rb = null;
+    for(const q of fb.players){ if(q.t===rec.t && q.i===rec.i){ rb=q; break; } }
+    if(!rb) rb=rec;
+    p.pos.x = rec.x + (rb.x-rec.x)*a;
+    p.pos.z = rec.z + (rb.z-rec.z)*a;
+    let df = rb.f-rec.f;
+    while(df > Math.PI) df -= Math.PI*2;
+    while(df < -Math.PI) df += Math.PI*2;
+    p.facing = rec.f + df*a;
+    p.velx=0; p.velz=0;
+  }
+  ball.pos.x = fa.ball.x + ((fb.ball.x-fa.ball.x)*a);
+  ball.pos.y = fa.ball.y + ((fb.ball.y-fa.ball.y)*a);
+  ball.pos.z = fa.ball.z + ((fb.ball.z-fa.ball.z)*a);
+  ball.vel.x=0; ball.vel.y=0; ball.vel.z=0;
+  G.replayIdx = raw;
+  G.replayCam = {x:ball.pos.x, y:ball.pos.y, z:ball.pos.z};
 }
 let commentT = 0;
 function sayComment(text){
@@ -2428,7 +2509,7 @@ function skipReplay(){ if(G.state==='replay') G.stateT = 0.001; }
 function applyDifficulty(d){
   if(d==='hard'){
     AI_SPRINT = 11.8; AI_TACKLE_CHANCE = 0.45; AI_PICKUP_R = 1.45;
-    USER_SPRINT_BOOST = 1.35; AI_SHOOT_RANGE = 18;
+    USER_SPRINT_BOOST = 2.2; AI_SHOOT_RANGE = 18;
   } else {
     AI_SPRINT = 10.4; AI_TACKLE_CHANCE = 0.16; AI_PICKUP_R = 1.3;
     USER_SPRINT_BOOST = 1.8; AI_SHOOT_RANGE = 15;
@@ -2567,11 +2648,12 @@ function updateCamera(dt){
   if(G.state==='replay' && G.replayFrames && G.replayFrames.length){
     const fi = Math.min(G.replayFrames.length-1, Math.floor(G.replayIdx));
     const fr = G.replayFrames[fi];
+    const cb = G.replayCam || fr.ball;
     const ang = Math.sin(G.time*0.7)*0.6;
-      camera.position.x = lerp(camera.position.x, fr.ball.x - Math.cos(ang)*9, 0.16);
+      camera.position.x = lerp(camera.position.x, cb.x - Math.cos(ang)*9, 0.16);
       camera.position.y = lerp(camera.position.y, 5.5, 0.16);
-      camera.position.z = lerp(camera.position.z, fr.ball.z - Math.sin(ang)*9, 0.16);
-      camera.lookAt(fr.ball.x, 1.2, fr.ball.z);
+      camera.position.z = lerp(camera.position.z, cb.z - Math.sin(ang)*9, 0.16);
+      camera.lookAt(cb.x, 1.2, cb.z);
     return;
   }
   let tx=ball.pos.x, tz=ball.pos.z;
@@ -2712,22 +2794,14 @@ function runFrame(dt){
   else if(G.state==='replay' && G.stateT<=0){ kickoff(); }
   else if(G.state==='half' && G.stateT<=0){ G.lastKickoff=G.userTeam; kickoff(); }
 
-  // 慢动作回放：按帧套用位置
+  // 慢动作回放：按时间进度连续插值，不再每帧 +0.6 硬跳、播完循环
   if(G.state==='replay' && G.replayFrames && G.replayFrames.length){
-    const fi = Math.min(G.replayFrames.length-1, Math.floor(G.replayIdx));
-    const fr = G.replayFrames[fi];
-    if(fr){
-      for(const rec of fr.players){
-        const p = G.teams[rec.t][rec.i];
-        if(!p) continue;
-        p.pos.x=rec.x; p.pos.z=rec.z; p.facing=rec.f;
-        p.velx=0; p.velz=0;
-      }
-      ball.pos.x=fr.ball.x; ball.pos.y=fr.ball.y; ball.pos.z=fr.ball.z;
-      ball.vel.x=0; ball.vel.y=0; ball.vel.z=0;
-    }
-    G.replayIdx += 0.6;
-    if(G.replayIdx >= G.replayFrames.length) G.replayIdx = 0;
+    const total = 5.0;
+    const prog = Math.max(0, Math.min(1, 1 - G.stateT / total));
+    const len = G.replayFrames.length;
+    const start = Math.max(0, len - 76);          // 只播最后约 5 秒，播到进球那一刻
+    const raw = start + prog * (len - 1 - start);
+    applyReplayAt(G.replayFrames, raw);
   }
 
   if(G.state==='play'){
@@ -3369,6 +3443,19 @@ window.addEventListener('load', ()=>{
       msg(ok ? ('本机最高分已同步上榜 · ' + lb.p + ' 分') : '本机最高分暂未同步（公共中继连不上）', !ok);
     });
   }
+
+  window.rankUploadLocal = function(){
+    if(!window.RANK){ msg('联机模块未加载，无法上传', true); return; }
+    migrateLocal();
+    var s = season();
+    var lb = localList().filter(function(x){ return x && x.id === pid && x.s === s; })[0];
+    if(!lb){ msg('本机还没有本赛季成绩，先打一场排位', true); return; }
+    msg('正在上传本机最高分 ' + lb.p + ' 分…');
+    RANK.submit(lb).then(function(ok){
+      msg(ok ? ('已上传 · ' + lb.p + ' 分，稍后刷新可见') : '上传失败（公共中继连不上）', !ok);
+      if(ok) setTimeout(window.rankRefresh, 500);
+    });
+  };
 
   window.rankRefresh = function(){
     if(!window.RANK){ render(merge([]), '联机模块未加载，只能看本机成绩'); return; }

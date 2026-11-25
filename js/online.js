@@ -125,12 +125,21 @@
     inp: { x: 0, y: 0, sp: 0 },
     act: [],
     lastSend: 0, lastInpAt: 0, lastInpRecv: 0, lastRecv: 0,
+    inSeq: 0, lastInSeq: 0,
     snaps: [], interpDelay: 0.16, clockOff: null, snapGap: 0, snap: null, snapAt: 0,
+    lastSnapTs: 0, replayBuf: [], replayOn: false, replayIdx: 0, localKickAt: 0, localHoldAt: 0,
+    lastMqSnap: 0, clientSess: '', session: '',
     rtt: 0, pingAt: 0,
     bnKey: '', endShown: false, matchStarted: false,
     keepT: null, joinT: null, badgeT: 0
   };
   function Rp(code, ch){ return NS + code + '/' + (ch||''); }
+  function setRtt(ms){
+    // 后台标签页的 setTimeout/rAF 会被浏览器节流，偶尔测出 2~5 秒的假延迟；
+    // 这种值不能直接显示成网络延迟。只接受 1.5 秒内的样本，并做平滑。
+    if(!(ms > 0) || ms > 1500) return;
+    NET.rtt = Math.round(NET.rtt ? NET.rtt * 0.7 + ms * 0.3 : ms);
+  }
   function genCode(){
     var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', s = '';
     for(var i=0;i<4;i++) s += chars.charAt((Math.random()*chars.length)|0);
@@ -237,7 +246,7 @@
     if(c0 === 'i'){ if(NET.role === 'host') hostOnInput(s.slice(1)); return; }
     if(c0 === 'j'){ if(NET.role === 'host'){ var m2=null; try{ m2=JSON.parse(s.slice(1)); }catch(_){ return; } hostOnCtl(m2); } return; }
     if(c0 === 'p'){ if(s.length > 1) p2pSend('o' + s.slice(1)); return; }
-    if(c0 === 'o'){ var n = +s.slice(1); if(n){ NET.rtt = Math.round(performance.now() - n); } return; }
+    if(c0 === 'o'){ var n = +s.slice(1); if(n) setRtt(performance.now() - n); return; }
   }
   function rtcGather(pc, ms){
     return new Promise(function(res){
@@ -311,8 +320,9 @@
       .then(function(a){ return pc.setLocalDescription(a); })
       .then(function(){ return rtcGather(pc, 2500); })
       .then(function(){
-        if(!NET.code || !NET.mq || !pc.localDescription) return;
-        NET.mq.publish(Rp(NET.code,'c2h'), JSON.stringify({ t:'rtcAns', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } }));
+        if(!NET.code || !pc.localDescription) return;
+        var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
+        for(var ai=0; ai<arr.length; ai++){ try{ arr[ai].publish(Rp(NET.code,'c2h'), JSON.stringify({ t:'rtcAns', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } })); }catch(_){} }
       }).catch(function(){});
   }
   function rtcHostAnswer(desc){
@@ -321,16 +331,34 @@
   }
   // 直连可用就用直连，否则回中继 —— 所有上行/下行都走这里
   function sendUp(str){
-    if(p2pSend('i' + str)) return;
-    if(NET.mq) NET.mq.publish(Rp(NET.code,'c2h'), 'i' + str);   // MQTT 路径也要带 i 前缀，否则主机收不到输入
+    // 输入必须“双通道”发送：P2P 偶尔单向失效（快照能回来、输入上不去），
+    // 只看 readyState 会误判。两条路都发，主机按序号去重。
+    p2pSend('i' + str);
+    var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
+    for(var i=0;i<arr.length;i++){ try{ arr[i].publish(Rp(NET.code,'c2h'), 'i' + str); }catch(_){} }
   }
   function sendUpJSON(obj){
     var s = JSON.stringify(obj);
+    // 跳过回放这类控制消息不能只赌 P2P：P2P 单向异常时客机会永远卡在回放。
+    if(obj && obj.t === 'skip'){
+      p2pSend('j' + s);
+      var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
+      for(var i=0;i<arr.length;i++){ try{ arr[i].publish(Rp(NET.code,'c2h'), s); }catch(_){} }
+      return;
+    }
     if(p2pSend('j' + s)) return;
-    if(NET.mq) NET.mq.publish(Rp(NET.code,'c2h'), s);
+    var arr2 = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
+    for(var j=0;j<arr2.length;j++){ try{ arr2[j].publish(Rp(NET.code,'c2h'), s); }catch(_){} }
   }
   function sendSnap(payload){
-    if(p2pSend('s' + payload)) return;
+    // 快照也双通道：P2P 只代表“通道开着”，不代表每一帧都送到了。
+    // 主机可能同时挂了 5~7 条中继，对手只在其中一条上；快照必须发到所有中继，
+    // 否则客机会出现“能加入、能看到比分，但球员和球永远不动”的假联机。
+    p2pSend('s' + payload);
+    var now = performance.now();
+    // 中继只跑 30Hz，直连仍保持 50Hz，避免公共 broker 被 7 路 × 50Hz 打爆。
+    if(now - (NET.lastMqSnap || 0) < 33) return;
+    NET.lastMqSnap = now;
     netPub(Rp(NET.code,'h2c'), payload);
   }
 
@@ -409,6 +437,7 @@
     haveC.then(function(mqs){
       NET.mq = mqs[0]; NET.role = 'host'; NET.nick = nick;
       NET.myTeam = G.userTeam; NET.code = genCode();
+      NET.session = 'h' + Math.random().toString(36).slice(2, 10);
       mqs.forEach(function(mq){
         mq.onmsg = function(t, p){ onRelayMsg(t, p, mq); };
         mq.subscribe(Rp(NET.code, 'c2h'));
@@ -438,6 +467,7 @@
     var haveJ = (NET.mqs && NET.mqs.length) ? Promise.resolve(NET.mqs) : connectRelays();
     haveJ.then(function(mqs){
       NET.nick = nick; NET.code = code;
+      NET.session = 'c' + Math.random().toString(36).slice(2, 10);
       mqs.forEach(function(mq){
         mq.onmsg = function(t, p){ onRelayMsg(t, p, mq); };
         mq.subscribe(Rp(code, 'h2c'));
@@ -452,10 +482,11 @@
         if(btn) btn.disabled = false;
         return;
       }
-      // 只保留找到房间的那一条中继，避免同一份快照被重复接收
+      // 不再把所有其它中继都关掉：主机现在把快照发到所有中继，
+      // 客机保留多路可以在某条 broker 抽风时继续收快照/发输入，
+      // 重复包由 ts / seq 去重。
       NET.mq = NET.roomMq;
-      (NET.mqs || []).forEach(function(m){ if(m !== NET.mq){ try{ m.close(); }catch(_){} } });
-      NET.mqs = [NET.mq];
+      // mqs 只是上一个 .then 的局部变量，这里不能引用；NET.mqs 已由 connectRelays 保留。
       NET.role = 'client-wait';
       setStatus('已找到房间 · 正在握手…');
       var tries = 0;
@@ -464,12 +495,13 @@
         if(++tries > 24){
           clearInterval(NET.joinT); NET.joinT = null;
           setStatus('❌ 房主无响应，请重试', false);
-          try{ NET.mq.close(); }catch(_){}
+          (NET.mqs || []).forEach(function(m){ try{ m.close(); }catch(_){} });
           NET.mq = null; NET.mqs = []; NET.role = null;
           if(btn) btn.disabled = false;
           return;
         }
-        NET.mq.publish(Rp(NET.code, 'c2h'), JSON.stringify({ t: 'j', n: NET.nick }));
+        var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
+        for(var ai=0; ai<arr.length; ai++){ try{ arr[ai].publish(Rp(NET.code, 'c2h'), JSON.stringify({ t: 'j', n: NET.nick, sess: NET.session })); }catch(_){} }
       };
       sendJoin();
       NET.joinT = setInterval(sendJoin, 500);
@@ -532,7 +564,7 @@
         else if(o.t === 'rst') clientOnReset();
         else if(o.t === 'rtc'){ if(NET.role === 'client' || NET.role === 'client-wait') rtcClientStart(o.sdp); }
       } else if(payload.charAt(0) === 'o'){
-        NET.rtt = Math.round(performance.now() - (+payload.slice(1)));
+        setRtt(performance.now() - (+payload.slice(1)));
       }
       return;
     }
@@ -570,20 +602,31 @@
 
   // ---------------- 主机 ----------------
   function hostOnJoin(m){
-    // 已在比赛中还收到握手（多半是应答丢了）：原样重发应答，保证客户端一定能连上
+    var sess = (m && m.sess) ? String(m.sess) : '';
+    // 已在比赛中还收到握手（多半是应答丢了）：原样重发应答，保证客户端一定能连上。
+    // 如果是新页面的客机（session 变了），重置输入序号，否则新客机的 seq 从 1 开始，
+    // 会被主机的旧序号挡住，表现为“能进场但完全动不了”。
     if(NET.matchStarted){
-      netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam }));
+      if(sess && NET.clientSess && sess !== NET.clientSess){
+        NET.clientSess = sess;
+        NET.lastInSeq = 0;
+        NET.lastMqSnap = 0;
+      }
+      netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam, sess: sess || NET.clientSess || '' }));
       if(!NET.p2pOk) rtcHostStart();   // 直连没建起来就再喊一次
       return;
     }
+    NET.clientSess = sess;
     NET.oppNick = (m.n || '对手').toString().slice(0, 10);
     NET.matchStarted = true;
     NET.remoteTeam = 1 - NET.myTeam;
     G.userTeam = NET.myTeam;
     startGame();
+    if(NET.remote) NET.remote.remoteCtl = false;
     NET.remote = G.teams[NET.remoteTeam][9];
     if(NET.remote){
       NET.remote.remoteCtl = true;
+      NET.remote.facing = NET.remote.team === 0 ? 0 : Math.PI;
       // 客机操控的球员脚下亮光环
       if(NET.remote.mesh && NET.remote.mesh.userData){
         NET.remote.mesh.userData.ring.visible = true;
@@ -592,8 +635,9 @@
     }
     NET.lastInpRecv = performance.now();
     NET.lastSend = 0; NET.snaps.length = 0;
+    NET.inSeq = 0; NET.lastInSeq = 0; NET.lastMqSnap = 0;
     NET.p2pTries = 0; clearTimeout(NET.p2pTimer);
-    netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam }));
+    netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam, sess: sess }));
     closeOnline();
     showBadge();
     rtcHostStart();   // 尝试建立点对点直连（失败就继续走中继）
@@ -602,11 +646,32 @@
   function hostOnInput(str){
     if(str.charAt(0) === 'i') str = str.slice(1);   // 兼容两种来源（MQTT 带前缀 / 直连已剥）
     var parts = str.split('|');
+    // 新页面客机的 session 不同：旧客户端的迟到输入不能继续操控新客机。
+    // 必须先做 session 过滤，再写 lastInSeq；否则旧 session 的高序号会污染序号，
+    // 新客机的 seq=1 会被误判成“旧包”而永远被丢掉。
+    if(parts.length > 6 && parts[6] && NET.clientSess && parts[6] !== NET.clientSess) return;
+    // 双通道发送（P2P + MQTT）会各到一份，按序号去重，否则同一帧移动会被算两次。
+    // 注意：只挡住“更旧/相同”的包，不能只挡相同序号；P2P 和 MQTT 乱序到达时，
+    // 旧包晚到会把球员往回拉，这是联机画面抖动的直接原因之一。
+    if(parts.length > 5){
+      var sq = parts[5] | 0;
+      var last = NET.lastInSeq || 0;
+      if(sq){
+        if(sq === last) return;
+        if(last && sq < last && (last - sq) < 0x40000000) return;
+        NET.lastInSeq = sq;
+      }
+    }
     NET.inp.x = +parts[0] || 0;
     NET.inp.y = +parts[1] || 0;
     NET.inp.sp = +parts[2] || 0;
     var acts = parts[3] || '';
     for(var i=0;i<acts.length;i++) NET.act.push(acts.charAt(i));
+    // 操控编号也每帧带一份：切人消息丢了也不会出现“客机在控 A、主机还在控 B”
+    if(parts.length > 4){
+      var si = parts[4] | 0;
+      if(si >= 0 && si < 11 && (!NET.remote || NET.remote.idx !== si)) hostOnCtl({ t:'sel', i:si });
+    }
     NET.lastInpRecv = performance.now();
   }
   // 客机控制消息（切换球员等）
@@ -616,13 +681,19 @@
       var arr = G.teams[NET.remoteTeam];
       var idx = (m.i|0);
       if(arr && idx >= 0 && idx < arr.length && arr[idx].role !== 'GK'){
-        // 旧操控对象光环熄灭
-        if(NET.remote && NET.remote.mesh && NET.remote.mesh.userData){
-          NET.remote.mesh.userData.ring.visible = false;
-          if(NET.remote.mesh.userData.ringGlow) NET.remote.mesh.userData.ringGlow.visible = false;
+        // 旧操控对象光环熄灭，同时解除“客机操控”标记，
+        // 否则切人后旧球员不再受 AI 控制，会永远钉在原地
+        if(NET.remote){
+          if(NET.remote.mesh && NET.remote.mesh.userData){
+            NET.remote.mesh.userData.ring.visible = false;
+            if(NET.remote.mesh.userData.ringGlow) NET.remote.mesh.userData.ringGlow.visible = false;
+          }
+          NET.remote.remoteCtl = false;
         }
         NET.remote = arr[idx];
         NET.remote.remoteCtl = true;
+        // 和单机切人一致：默认面朝对方球门，避免切人后第一次传球变成回传
+        NET.remote.facing = NET.remote.team === 0 ? 0 : Math.PI;
         // 新操控对象脚下亮光环（和单机一样）
         if(NET.remote.mesh && NET.remote.mesh.userData){
           NET.remote.mesh.userData.ring.visible = true;
@@ -634,6 +705,19 @@
   function hostPreTick(dt){
     var p = NET.remote;
     if(!p) return;
+    // 只有比赛进行中才认客机输入；开球倒计时/进球庆祝/回放/中场都冻结，
+    // 否则主机会在客机已经停下时继续把人往前推，两边画面必然对不上
+    if(G.state !== 'play' || G.paused){
+      NET.inp.x = 0; NET.inp.y = 0; NET.inp.sp = 0;
+      NET.act.length = 0;   // 倒计时/庆祝/回放时按的键不算，避免开球瞬间突然一脚
+      p.velx = 0; p.velz = 0;
+      return;
+    }
+    // 输入断流（客机切后台/丢包）超过 140ms 就松开所有方向键，
+    // 不能让最后一条输入在主机上一直生效，把人推出场外
+    if(NET.lastInpRecv && performance.now() - NET.lastInpRecv > 140){
+      NET.inp.x = 0; NET.inp.y = 0; NET.inp.sp = 0;
+    }
     // 移动（与玩家操控同一套速度/朝向规则）
     var spd = NET.inp.sp ? (SPRINT_SPD + USER_SPRINT_BOOST) : WALK_SPD;
     var len = Math.hypot(NET.inp.x, NET.inp.y);
@@ -642,7 +726,12 @@
       p.pos.z += NET.inp.y / len * spd * dt;
       p.facing = Math.atan2(NET.inp.y, NET.inp.x);
       p.velx = NET.inp.x / len * spd; p.velz = NET.inp.y / len * spd;
-    } else { p.velx = 0; p.velz = 0; }
+    } else if(ball.passTarget === p || (!ball.owner && dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < 10 && ball.speed < 20)){
+      // 和单机 userMove 的“不操作也自动迎球”一致：传球朝你飞来/球滚到脚边时自动跑过去
+      moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
+    } else {
+      p.velx = 0; p.velz = 0;
+    }
     clampPlayer(p);
     // 拾球（与玩家同一规则）
     if(!ball.owner && ball.speed < 22 &&
@@ -664,11 +753,22 @@
       for(var i=0;i<acts.length;i++){
         if(acts[i] === 's'){
           var gx = oppGoalX(p.team);
-          var tz = (Math.random() < 0.5 ? -1 : 1) * (2.2 + Math.random() * 1.6);
-          shootToward(p, gx, tz, 28 + Math.random() * 4, 1.5 + Math.random() * 2);
+          // 客机把射门参数（落点 z / 力量 / 弧线）一起发过来，主机照做，
+          // 两边看到的是同一条射门轨迹；旧端没带参数就随机
+          var spec = '';
+          while(i + 1 < acts.length && acts[i + 1] !== 'p' && acts[i + 1] !== 's'){ spec += acts[i + 1]; i++; }
+          var vals = spec.split(',');
+          var tz = (vals.length >= 3 && isFinite(+vals[0])) ? +vals[0] : (Math.random() < 0.5 ? -1 : 1) * (2.2 + Math.random() * 1.6);
+          var pw = (vals.length >= 3 && isFinite(+vals[1])) ? +vals[1] : (28 + Math.random() * 4);
+          var lf = (vals.length >= 3 && isFinite(+vals[2])) ? +vals[2] : (1.5 + Math.random() * 2);
+          shootToward(p, gx, tz, pw, lf);
         } else if(acts[i] === 'p'){
-          var t = bestPassTarget(p, G.teams[p.team]);
-          if(t) passTo(p, t, 20);
+          // 客机可能把传球目标编号一起发过来（p + 编号），这样两边传向同一个人。
+          // 没有编号就退回主机自己选最佳目标（兼容旧端）。
+          var num = '';
+          while(i + 1 < acts.length && acts[i + 1] >= '0' && acts[i + 1] <= '9'){ num += acts[i + 1]; i++; }
+          var t = (num !== '') ? (G.teams[p.team] && G.teams[p.team][+num]) : bestPassTarget(p, G.teams[p.team]);
+          if(t && t !== p) passTo(p, t, 20);
         }
       }
     } else if(NET.act.length > 4){
@@ -678,8 +778,9 @@
   function r1(v){ return Math.round(v * 10) / 10; }
   function hostPostTick(){
     var now = performance.now();
-    // 直连时 30Hz 快照，中继时 18Hz；带速度字段，客机可以外推，不用靠延迟插值
-    var gap = NET.p2pOk ? 33 : 55;
+    // 直连 50Hz、中继 30Hz：18Hz 时客机每 55ms 才收到一次位置，
+    // 中间全靠外推，画面和主机差得最明显。提高快照频率是最直接的同步改善。
+    var gap = NET.p2pOk ? 20 : 33;
     if(now - NET.lastSend > gap){
       NET.lastSend = now;
       var ps = new Array(22), n = 0;
@@ -693,10 +794,22 @@
       var bn = (G.bannerT > 0 && el('banner-big')) ? [el('banner-big').textContent, (el('banner-sub')||{}).textContent || ''] : null;
       var sg = (G.state === 'goal' && G.scorerPlayer) ? [G.scorerPlayer.team, G.scorerPlayer.idx] : null;
       var bo = ball.owner ? [ball.owner.team, ball.owner.idx] : null;
+      var pt = ball.passTarget ? [ball.passTarget.team, ball.passTarget.idx] : null;
+      // 动画状态（滑铲/扑救、庆祝）和统计也一起发，客机才不会“人滑着走、门将不扑”
+      var an = [];
+      for(var ti2=0; ti2<2; ti2++){
+        var ar2 = G.teams[ti2];
+        for(var j2=0; j2<ar2.length; j2++){
+          var q2 = ar2[j2];
+          if((q2.celebrateT || 0) > 0.01 || (q2.diveT || 0) > 0.01) an.push([ti2, j2, r1(q2.celebrateT || 0), r1(q2.diveT || 0)]);
+        }
+      }
+      var st2 = G.stats ? [r1(G.stats.possT[0]), r1(G.stats.possT[1]), G.stats.shots[0], G.stats.shots[1], G.stats.passes[0], G.stats.passes[1]] : null;
       sendSnap(JSON.stringify({
-        t:'s', ts:Math.round(now), st:G.state, sc:G.score, ck:r1(G.clock), hf:G.half, stt:r1(Math.max(0, G.stateT)),
+        t:'s', ts:Math.round(now), st:G.state, sc:G.score, ck:r1(G.clock), hf:G.half, stt:r1(Math.max(0, G.stateT)), tm:r1(G.time),
+        lk:G.lastKickoff,
         bl:[r1(ball.pos.x), r1(ball.pos.y), r1(ball.pos.z), r1(ball.vel.x), r1(ball.vel.y), r1(ball.vel.z)],
-        bo:bo, sg:sg, bn:bn, ps:ps
+        bo:bo, sg:sg, bn:bn, ps:ps, an:an, ss:st2, pt:pt
       }));
     }
     var nb = el('net-badge');
@@ -716,8 +829,13 @@
     NET.remoteTeam = 1 - NET.myTeam;
     G.userTeam = NET.myTeam;
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = ''; NET.camInit = false;
+    NET.session = o.sess || NET.session || '';
+    NET.lastInpAt = 0; NET.lastMqSnap = 0;
     NET.snap = null; NET.snapAt = 0; NET.lastSc = null; NET.lastClockTxt = '';
     NET.clockOff = null; NET.snapGap = 0; NET.interpDelay = 0.16;
+    NET.lastSnapTs = 0; NET.replayBuf = []; NET.replayOn = false; NET.replayIdx = 0; NET.animPrev = null; NET.replaySeq = 0; NET.localKickAt = 0; NET.localHoldAt = 0;
+    NET.inSeq = 0; NET.lastInSeq = 0;
+    G.replayFrames = null;
     startGame();
     closeOnline();
     showBadge();
@@ -727,6 +845,9 @@
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = '';
     NET.snap = null; NET.snapAt = 0; NET.lastSc = null; NET.lastClockTxt = '';
     NET.clockOff = null; NET.snapGap = 0; NET.interpDelay = 0.16;
+    NET.lastSnapTs = 0; NET.replayBuf = []; NET.replayOn = false; NET.replayIdx = 0; NET.animPrev = null; NET.replaySeq = 0; NET.localKickAt = 0; NET.localHoldAt = 0;
+    NET.inSeq = 0; NET.lastInSeq = 0;
+    G.replayFrames = null;
     startGame();
   }
   function lerpAngle(a, b, k){
@@ -739,6 +860,9 @@
   // 不再用“落后 interpDelay 的延迟插值”（那是画面慢半拍、对手像不动的根源）
   function clientOnSnapshot(o){
     if(!o || !o.ps) return;
+    // 多中继/直连可能各送一份；同一时间戳的旧快照直接丢掉，避免画面被拉回去抖一下
+    if(o.ts && NET.lastSnapTs && o.ts <= NET.lastSnapTs) return;
+    if(o.ts) NET.lastSnapTs = o.ts;
     var now = performance.now();
     if(NET.snapAt){
       var g = now - NET.snapAt;
@@ -747,7 +871,55 @@
     NET.lastRecv = now;
     NET.snap = o;
     NET.snapAt = now;
+    clientRecordReplay(o);
     applySnapshotState(o);
+    applySnapshotAnim(o);
+  }
+  // 客机自己录一份“进球前的比赛帧”，进球后用同一套回放镜头播，
+  // 不然主机会播 5 秒回放，客机只能干看实时画面，两边完全不同步
+  function clientRecordReplay(o){
+    if(!o.ps || !o.bl) return;
+    if(o.st !== 'play') return;
+    NET.replaySeq = (NET.replaySeq || 0) + 1;
+    if(NET.replaySeq % 2) return;      // 30Hz 快照隔一张录一帧，回放约 15fps，够用且省内存
+    var players = new Array(22), n = 0;
+    for(var ti=0; ti<2; ti++){
+      var len = G.teams[ti] ? G.teams[ti].length : 11;
+      for(var i=0;i<len;i++){
+        var pa = o.ps[n++] || [0,0,0];
+        players[n-1] = { t:ti, i:i, x:pa[0], z:pa[1], f:pa[2] || 0 };
+      }
+    }
+    NET.replayBuf.push({ players:players, ball:{ x:o.bl[0], y:o.bl[1], z:o.bl[2] } });
+    while(NET.replayBuf.length > 110) NET.replayBuf.shift();
+  }
+  // 动画状态（扑救/庆祝）跟着快照走；上一张有、这一张没有的就清零
+  function applySnapshotAnim(o){
+    var prev = NET.animPrev;
+    if(prev){
+      for(var k=0;k<prev.length;k++){
+        var pp = G.teams[prev[k][0]] && G.teams[prev[k][0]][prev[k][1]];
+        if(pp){ pp.celebrateT = 0; pp.diveT = 0; }
+      }
+    }
+    NET.animPrev = [];
+    if(o.an){
+      for(var j=0;j<o.an.length;j++){
+        var rec = o.an[j], arr = G.teams[rec[0]];
+        var p2 = arr && arr[rec[1]];
+        if(p2){
+          p2.celebrateT = rec[2] || 0;
+          p2.diveT = rec[3] || 0;
+          NET.animPrev.push([rec[0], rec[1]]);
+        }
+      }
+    }
+    if(o.ss && G.stats && G.stats.possT){
+      G.stats.possT[0] = o.ss[0]; G.stats.possT[1] = o.ss[1];
+      G.stats.shots[0] = o.ss[2]; G.stats.shots[1] = o.ss[3];
+      G.stats.passes[0] = o.ss[4]; G.stats.passes[1] = o.ss[5];
+      if(typeof updateStatsPanel === 'function') updateStatsPanel();
+    }
   }
   // 比分/时钟/横幅这些低频状态：只在变化时写 DOM
   function applySnapshotState(sb){
@@ -766,8 +938,33 @@
       }
     }
     G.clock = sb.ck; G.half = sb.hf;
+    if(typeof sb.lk === 'number') G.lastKickoff = sb.lk;
+    if(sb.tm) G.time = sb.tm;   // 镜头摆动/回放环绕相位也跟主机一致
     G.state = sb.st; G.stateT = sb.stt;
-    G.scorerPlayer = sb.sg ? G.teams[sb.sg[0]][sb.sg[1]] : null;
+    // 客机回放：用自己录的快照帧，配合主机的同一套回放镜头
+    if(G.state === 'replay'){
+      if(!NET.replayOn){
+        NET.replayOn = true;
+        NET.replayIdx = 0;
+        G.replayFrames = (NET.replayBuf && NET.replayBuf.length > 8) ? NET.replayBuf.slice() : null;
+        G.replayIdx = 0;
+        if(typeof hideBanner === 'function') hideBanner();
+        // 客机刚进来还没录到足够帧：直接请求主机跳过回放，两边一起回到开球
+        if(!G.replayFrames){ try{ sendUpJSON({ t:'skip' }); }catch(_){} }
+      }
+    } else if(NET.replayOn){
+      NET.replayOn = false;
+      NET.replayIdx = 0;
+      G.replayFrames = null;
+    }
+    G.scorerPlayer = (sb.sg && G.teams[sb.sg[0]]) ? G.teams[sb.sg[0]][sb.sg[1]] : null;
+    // 客机也要知道“这脚球是传给谁的”，本地预测才能和单机一样自动迎球
+    if(sb.pt){
+      var ptr = G.teams[sb.pt[0]] && G.teams[sb.pt[0]][sb.pt[1]];
+      if(ptr) ball.passTarget = ptr;
+    } else {
+      ball.passTarget = null;
+    }
     var cm = Math.floor(Math.max(0, G.clock) / 60), cs = Math.floor(Math.max(0, G.clock) % 60);
     var ctxt = String(cm).padStart(2,'0') + ':' + String(cs).padStart(2,'0');
     if(NET.lastClockTxt !== ctxt){
@@ -796,7 +993,10 @@
   // 这样对手是连续移动的，球也贴着持球人脚下走，而不是每 55ms 跳一格。
   function applyWorld(dt){
     var s = NET.snap; if(!s || !s.ps) return;
-    var age = Math.min(0.26, Math.max(0, (performance.now() - NET.snapAt) / 1000));
+    // 快照是“主机发车时”的状态，到客机已经晚了一个单程延迟。
+    // 按 RTT/2 往前多外推一点，客机看到的对手/球才接近主机当前，而不是永远慢半拍。
+    var lag = NET.rtt ? Math.min(0.08, NET.rtt / 2000) : 0;
+    var age = Math.min(0.32, Math.max(0, (performance.now() - NET.snapAt) / 1000 + lag));
     var myIdx = G.activeIdx, n = 0;
     for(var ti=0; ti<2; ti++){
       var arr = G.teams[ti];
@@ -809,16 +1009,41 @@
         if(ti === NET.myTeam && i === myIdx){
           // 自己在本地已经预测走过，只有偏差超过死区才拉回来（避免被延迟一直拖住）
           if(e > 5){ p.pos.x = tx; p.pos.z = tz; }
-          else if(e > 1.0){ p.pos.x += dx * 0.25; p.pos.z += dz * 0.25; }
+          else if(e > 0.5){ p.pos.x += dx * 0.2; p.pos.z += dz * 0.2; }
         } else {
           if(e > 9){ p.pos.x = tx; p.pos.z = tz; }
-          else { var kk = Math.min(0.55, 0.18 + dt * 9); p.pos.x += dx * kk; p.pos.z += dz * kk; }
+          else { var kk = Math.min(0.85, 0.45 + dt * 12); p.pos.x += dx * kk; p.pos.z += dz * kk; }
           p.facing = lerpAngle(p.facing, pa[2], Math.min(1, 0.25 + dt * 8));
+          // 快照里的速度必须写回，否则客机的 AI 球员 vel=0，跑动动画完全不播，
+          // 看上去就是“人在地面上滑”，这也是两边画面不一样的主要来源之一
+          p.velx = pa[3] || 0;
+          p.velz = pa[4] || 0;
         }
       }
     }
-    // 球：有主时贴脚下（本地零延迟），无主时按速度外推
-    if(s.bo){
+    // 球：自己刚踢出去的头 220ms 内不要被“主机还没收到动作”的旧快照拉回脚下，
+    // 否则客机看到球飞出去又瞬移回脚边，像丢球/接不到
+    var lf = !!(NET.localKickAt && (performance.now() - NET.localKickAt) < 220 &&
+                !ball.owner && (Math.hypot(ball.vel.x || 0, ball.vel.z || 0) > 4 || ball.pos.y > 0.6));
+    var lh = !!(NET.localHoldAt && (performance.now() - NET.localHoldAt) < 260 &&
+                ball.owner && !s.bo);
+    if(lh){
+      // 本地刚接到球，主机还没确认：先把球钉在自己脚下，等主机球权回来再交还权威
+      var hp = ball.owner;
+      ball.pos.x = hp.pos.x + Math.cos(hp.facing) * 1.0;
+      ball.pos.z = hp.pos.z + Math.sin(hp.facing) * 1.0;
+      ball.pos.y = 0.34;
+      ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
+      ball.speed = 0;
+    } else if(lf){
+      ball.owner = null;
+      ball.pos.x += ball.vel.x * dt;
+      ball.pos.y += ball.vel.y * dt;
+      ball.pos.z += ball.vel.z * dt;
+      ball.vel.y -= 22 * dt;
+      if(ball.pos.y < 0.34){ ball.pos.y = 0.34; if(Math.abs(ball.vel.y) < 2.2) ball.vel.y = 0; else ball.vel.y = -ball.vel.y * 0.55; }
+      ball.speed = Math.hypot(ball.vel.x, ball.vel.z);
+    } else if(s.bo){
       var o = G.teams[s.bo[0]][s.bo[1]];
       if(o){
         ball.owner = o;
@@ -832,14 +1057,16 @@
       ball.owner = null;
       var bl = s.bl || [0, 0.34, 0];
       var btx = bl[0] + (bl[3] || 0) * age;
-      var bty = bl[1] + (bl[4] || 0) * age;
+      // 高球要按重力下落，不能直线外推（否则客机看到的弧线比主机平，球像飘过去）
+      var bty = bl[1] + (bl[4] || 0) * age - 0.5 * 22 * age * age;
+      if(bty < 0.34) bty = 0.34;
       var btz = bl[2] + (bl[5] || 0) * age;
       var be = Math.hypot(btx - ball.pos.x, bty - ball.pos.y, btz - ball.pos.z);
       if(be > 12){ ball.pos.x = btx; ball.pos.y = bty; ball.pos.z = btz; }
       else {
-        ball.pos.x += (btx - ball.pos.x) * 0.55;
-        ball.pos.y += (bty - ball.pos.y) * 0.55;
-        ball.pos.z += (btz - ball.pos.z) * 0.55;
+        ball.pos.x += (btx - ball.pos.x) * 0.78;
+        ball.pos.y += (bty - ball.pos.y) * 0.78;
+        ball.pos.z += (btz - ball.pos.z) * 0.78;
       }
       if(ball.pos.y < 0.34) ball.pos.y = 0.34;
       ball.speed = Math.hypot(bl[3] || 0, bl[5] || 0);
@@ -867,7 +1094,9 @@
     // 只要有一条通路在（直连通道 或 MQTT 中继）就必须发；之前只认 MQTT，
     // 中继掉线时客机就完全动不了
     var canP2P = NET.p2p && NET.p2p.readyState === 'open';
-    var canMq  = NET.mq && NET.mq.connected;
+    var canMq  = false;
+    for(var mi=0; mi<(NET.mqs||[]).length; mi++){ if(NET.mqs[mi] && NET.mqs[mi].connected){ canMq = true; break; } }
+    if(!canMq && NET.mq && NET.mq.connected) canMq = true;
     if(!canP2P && !canMq) return;
     NET.lastInpAt = now;
     var dx = ((keys['KeyD'] || keys['ArrowRight'] || keys['Numpad6']) ? 1 : 0) - ((keys['KeyA'] || keys['ArrowLeft'] || keys['Numpad4']) ? 1 : 0);
@@ -881,14 +1110,28 @@
       if(act.indexOf('s') >= 0){
         var gx = oppGoalX(p.team);
         var tz = (Math.random() < 0.5 ? -1 : 1) * (2.2 + Math.random() * 1.6);
-        shootToward(p, gx, tz, 28 + Math.random() * 4, 1.5 + Math.random() * 2);
+        var pw = 28 + Math.random() * 4;
+        var lf = 1.5 + Math.random() * 2;
+        shootToward(p, gx, tz, pw, lf);
+        NET.localKickAt = performance.now();
+        NET.localHoldAt = 0;
+        var si = act.indexOf('s');
+        act = act.slice(0, si) + 's' + tz.toFixed(1) + ',' + pw.toFixed(1) + ',' + lf.toFixed(1) + act.slice(si + 1);
       } else if(act.indexOf('p') >= 0){
         var t = bestPassTarget(p, G.teams[p.team]);
-        if(t) passTo(p, t, 20);
+        if(t){
+          passTo(p, t, 20);
+          NET.localKickAt = performance.now();
+          NET.localHoldAt = 0;
+          // 把目标编号带给主机，避免客机看到传给 A、主机却传给 B
+          var pi = act.indexOf('p');
+          act = act.slice(0, pi) + 'p' + t.idx + act.slice(pi + 1);
+        }
       }
     }
-    sendUp(dx + '|' + dz + '|' + sp + '|' + act);
-    if(now - NET.pingAt > 2000){
+    NET.inSeq = (NET.inSeq + 1) >>> 0;
+    sendUp(dx + '|' + dz + '|' + sp + '|' + act + '|' + G.activeIdx + '|' + NET.inSeq + '|' + (NET.session || ''));
+    if(now - NET.pingAt > 2000 && !document.hidden){
       NET.pingAt = now;
       if(!p2pSend('p' + Math.round(now)) && canMq) NET.mq.publish(Rp(NET.code,'c2h'), 'p' + Math.round(now));
     }
@@ -910,23 +1153,77 @@
       p.pos.z += dz/len * spd * dt;
       p.facing = Math.atan2(dz, dx);
       p.velx = dx/len * spd; p.velz = dz/len * spd;
+    } else if(ball.passTarget === p || (!ball.owner && dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z) < 10 && ball.speed < 20)){
+      // 与单机 userMove 相同：传球朝你飞来 / 球滚到脚边时自动迎球
+      if(typeof moveAI === 'function') moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
     } else {
       p.velx = 0; p.velz = 0;
     }
     if(typeof clampPlayer === 'function') clampPlayer(p);
+    // 本地先完成“接球”：客机的球比主机快一个单程延迟，如果等主机确认再拿球，
+    // 会出现“人已经站在球上、球却从脚边滑过去”。这里只做一个短窗口的本地持球，
+    // 主机快照一旦给出正式球权就以主机为准。
+    var hostBallOwner = NET.snap && NET.snap.bo;
+    var hostOtherOwns = !!(hostBallOwner && !(hostBallOwner[0] === NET.myTeam && hostBallOwner[1] === p.idx));
+    if(!hostOtherOwns && !ball.owner && G.state === 'play' && !selfPassLock(p) &&
+       ball.speed < 22 && dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R + 1.4){
+      ball.owner = p; p.owns = true; ball.passTarget = null;
+      ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
+      NET.localHoldAt = performance.now();
+    }
     // 自己控球时把球钉在脚下（主机快照里的球权 + 本地预测的位置），球不会拖在身后
     if(ball.owner === p){
       ball.pos.x = p.pos.x + Math.cos(p.facing) * 1.0;
       ball.pos.z = p.pos.z + Math.sin(p.facing) * 1.0;
       ball.pos.y = 0.34;
     }
-    p.updateMesh();
+    // 不再单独 updateMesh：applyWorld 最后会统一刷一次，
+    // 这里再刷会让自己的跑动动画 phase 每帧加两次，腿摆得比主机快一倍
   }
   function clientFrame(dt){
     G.time += dt;
-    clientSendInput();
-    clientPredict(dt);     // 本地先走，手感立刻响应
-    applyWorld(dt);        // 用最新快照外推 + 平滑收束（主机仍是权威）
+    if(G.state !== 'play') NET.act.length = 0;   // 非比赛状态不攒动作键
+    // 客机也要推进庆祝/扑救计时和彩带，不然进球者会一直定格在空中
+    for(var ti=0; ti<2; ti++){
+      var arr0 = G.teams[ti];
+      if(!arr0) continue;
+      for(var i0=0; i0<arr0.length; i0++){
+        var p0 = arr0[i0];
+        if(p0.celebrateT > 0) p0.celebrateT -= dt;
+        if(p0.diveT > 0) p0.diveT -= dt;
+      }
+    }
+    if(typeof updateConfetti === 'function') updateConfetti(dt);
+    var replaying = !!(G.state === 'replay' && G.replayFrames && G.replayFrames.length);
+    if(replaying){
+      // 客机用自己录的快照帧播回放；和主机共用“按 5 秒进度连续插值”的算法，
+      // 不再 0.6 帧硬跳、也不会播完循环回第一帧闪一下。
+      G.stateT = Math.max(0, (G.stateT || 0) - dt);
+      var total = 5.0;
+      var prog = Math.max(0, Math.min(1, 1 - G.stateT / total));
+      var flen = G.replayFrames.length;
+      var start = Math.max(0, flen - 76);
+      var raw = start + prog * (flen - 1 - start);
+      for(var tc=0; tc<2; tc++){
+        var ac = G.teams[tc];
+        if(!ac) continue;
+        for(var ic=0; ic<ac.length; ic++){ ac[ic].celebrateT = 0; ac[ic].diveT = 0; }
+      }
+      if(typeof applyReplayAt === 'function') applyReplayAt(G.replayFrames, raw);
+      ball.owner = null; ball.speed = 0;
+      for(var t3=0; t3<2; t3++){
+        var a3 = G.teams[t3];
+        if(!a3) continue;
+        for(var j3=0; j3<a3.length; j3++) a3[j3].updateMesh();
+      }
+      ball.mesh.position.set(ball.pos.x, ball.pos.y, ball.pos.z);
+    } else {
+      clientSendInput();
+      clientPredict(dt);     // 本地先走，手感立刻响应
+      // 和主机一样做球员身体碰撞：客机不跑物理，但至少自己的球员不能穿过对手
+      if(typeof resolveCollisions === 'function') resolveCollisions();
+      applyWorld(dt);        // 用最新快照外推 + 平滑收束（主机仍是权威）
+    }
     // 客机没有本地回放帧，但回放阶段要能看到“跳过回放”按钮（点了会让主机结束回放）
     var sk = el('btn-skip-replay');
     if(sk) sk.style.display = (G.state === 'replay') ? 'block' : 'none';
@@ -971,11 +1268,11 @@
     return _runFrame(dt);
   };
   userShoot = function(){
-    if(NET.role === 'client'){ NET.act.push('s'); return; }
+    if(NET.role === 'client'){ if(G.state === 'play') NET.act.push('s'); return; }
     return _userShoot.apply(this, arguments);
   };
   userPass = function(){
-    if(NET.role === 'client'){ NET.act.push('p'); return; }
+    if(NET.role === 'client'){ if(G.state === 'play') NET.act.push('p'); return; }
     return _userPass.apply(this, arguments);
   };
   switchPlayer = function(){
@@ -1043,7 +1340,9 @@
   var RANK_BROKERS = [
     'wss://broker.hivemq.com:8884/mqtt',
     'wss://broker.emqx.io:8084/mqtt',
-    'wss://broker-cn.emqx.io:8084/mqtt'
+    'wss://broker-cn.emqx.io:8084/mqtt',
+    'wss://mqtt.eclipseprojects.io/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt'
   ];
 
   // 年度榜：不再按周清零，避免周一零点榜单突然变空
@@ -1081,7 +1380,11 @@
               if(decided) return; decided = true;
               // 同一玩家已有更高分 → 不拿这次的低分去覆盖，最高分留在榜上
               var keep = seen && (seen.p > entry.p || (seen.p === entry.p && seen.g >= (+entry.g||0)));
-              if(!keep){ try{ mq.publish(topic, JSON.stringify(entry), true); }catch(_){} }
+              if(!keep){
+                try{ mq.publish(topic, JSON.stringify(entry), true); }catch(_){}
+                // retained 主题在部分公共中继上偶发丢包，稍后再补一次，题目/内容相同不会产生重复成绩
+                setTimeout(function(){ try{ mq.publish(topic, JSON.stringify(entry), true); }catch(_){} }, 300);
+              }
               setTimeout(function(){ try{ mq.close(); }catch(_){} }, 900);
               finish(true);
             };
