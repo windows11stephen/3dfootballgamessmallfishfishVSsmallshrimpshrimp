@@ -600,7 +600,7 @@
 <div id="online-panel" class="overlay hidden">
   <div id="online-box">
     <h2>🌐 联机对战</h2>
-    <div class="sub">无需自建服务器 · 通过公网中继直连<br>房主创建房间 → 把 4 位房号发给朋友 → 朋友输入房号加入</div>
+    <div class="sub">无需自建服务器 · WebRTC 直连（P2P）· 低延迟<br>房主创建房间 → 把 4 位房号发给朋友 → 朋友输入房号加入</div>
     <div class="on-row" style="justify-content:center;gap:10px">
       <button id="mode-11" class="on-btn primary" style="flex:1" onclick="setOnlineMode(11)">11v11 标准</button>
       <button id="mode-3" class="on-btn" style="flex:1" onclick="setOnlineMode(3)">3v3 小队</button>
@@ -3406,7 +3406,7 @@ window.addEventListener('load', ()=>{
   }, {passive:false});
 })();
 </script>
-<script src="js/online.js?v=20261127f"></script>
+<script src="js/online.js?v=20261127direct1"></script>
 <script>
 // ---------------- 自定义键位：只在输入层映射，不改游戏逻辑 ----------------
 (function(){

@@ -1,6 +1,7 @@
 /* ============================================================
    联机对战模块
-   - 公网 MQTT 中继（HiveMQ 公共 broker），无需自建服务器
+   - 房间发现 / 握手 / SDP 信令走公共 broker（不承载比赛数据）
+   - 比赛输入和快照只走 WebRTC 直连（P2P），不挂 TURN、不跑 MQTT 数据中继
    - 主机权威：主机跑完整比赛，客户端只发操作、收快照渲染
    - 单机模式完全不受影响（NET.role 为空时所有钩子直接透传）
    ============================================================ */
@@ -102,27 +103,24 @@
   MiniMQTT.prototype.close = function(){ try{ this.ws.close(); }catch(_){} };
 
   // ---------------- 联机状态 ----------------
-  // 公网中继候选（全部免费、无需账号）。开房时并行连接，能连上的全部同时挂房间，
-  // 客户端只要其中一个能用就能找到房间 —— 单个中继抽风不影响联机。
+  // 公网信令候选（只用于房间发现 / 加入握手 / SDP 交换，不承载输入和快照）。
+  // 实测公共 broker 的游戏往返都 >100ms，达不到低延迟要求，
+  // 所以联机数据只走 WebRTC 直连；这里保留几个最快的只做信令。
   var BROKERS = [
-    'wss://broker.hivemq.com:8884/mqtt',
-    'ws://broker.hivemq.com:8000/mqtt',
-    'wss://broker.emqx.io:8084/mqtt',
-    'ws://broker.emqx.io:8083/mqtt',
-    'wss://broker-cn.emqx.io:8084/mqtt',
     'ws://broker-cn.emqx.io:8083/mqtt',
-    'wss://mqtt.eclipseprojects.io/mqtt',
-    'wss://test.mosquitto.org:8081/mqtt',
     'ws://test.mosquitto.org:8080/mqtt',
-    'wss://broker.mqttdashboard.com:8000/mqtt'
+    'wss://broker-cn.emqx.io:8084/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt',
+    'ws://broker.emqx.io:8083/mqtt'
   ];
   var NS = 'zhujcup2026/';
   var NET = window.NET = {
     role: null,            // null | 'host' | 'client' | 'client-wait'
     code: '', nick: '', oppNick: '',
     broker: '', mq: null, mqs: [], roomMq: null, roomSeen: false,
-    rooms: {}, p2p: null, p2pOk: false, pc: null, p2pAt: 0, p2pRestarted: false,
-    p2pTries: 0, p2pTimer: null,
+    rooms: {}, p2p: null, p2pOk: false, iceOk: false, pc: null, p2pAt: 0,
+    p2pTries: 0, p2pTimer: null, p2pClosing: false, p2pReqCount: 0,
+    clientP2PTimer: null, lastRtcReqAt: 0, lastHostRtcReq: 0, rtcOfferSdp: '', directFail: false, iceQ: [],
     myTeam: 0, remoteTeam: 1, remoteIdx: 9, matchSize: 11,
     remote: null,
     inp: { x: 0, y: 0, sp: 0 },
@@ -157,7 +155,7 @@
   }
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
-  // ---------------- 连接中继（并行多路，能连上的全部保留） ----------------
+  // ---------------- 连接信令服务器（并行多路，能连上的全部保留） ----------------
   function connectRelays(timeoutMs){
     return new Promise(function(resolve, reject){
       var ok = [], done = false, firstAt = 0, t0 = Date.now(), pending = [];
@@ -170,7 +168,7 @@
           NET.broker = ok.map(function(m){ return m.url; }).join(' | ');
           resolve(ok);
         } else {
-          reject(new Error('所有公网中继都连不上（换个网络或稍后重试）'));
+          reject(new Error('房间服务器连不上（换个网络或稍后重试）'));
         }
       };
       var tick = setInterval(function(){
@@ -198,19 +196,25 @@
 
   /* ============================================================
      点对点直连（WebRTC DataChannel）
-     - 信令借用已连上的 MQTT 中继（只在开局交换一次 SDP，量极小）
-     - 直连通道只跑输入流和快照流（丢帧无所谓，下一帧就是全量状态）
-     - 直连建立失败/中途断开：自动继续用中继，玩家无感
+     - 信令借用房间服务器（只在开局交换 SDP/ICE，量极小）
+     - 直连通道只跑输入流和快照流；不挂 TURN、不跑 MQTT 数据中继
+     - 直连建立失败会多轮重试；仍然失败就明确提示，不偷偷回落到高延迟中继
      ============================================================ */
-  var ICE = { iceServers: [
-    { urls: 'stun:stun.chat.bilibili.com:3478' },   // B 站 STUN（国内，实测可用、响应快）
-    { urls: 'stun:stun.hitv.com:3478' },            // 芒果 TV STUN（国内）
-    { urls: 'stun:stun.miwifi.com:3478' },
-    { urls: 'stun:stun.qq.com:3478' },
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: [ 'turn:openrelay.metered.ca:3478?transport=udp', 'turn:openrelay.metered.ca:3478?transport=tcp', 'turns:openrelay.metered.ca:443' ],
-      username: 'openrelayproject', credential: 'openrelayproject' }
-  ] };
+  var ICE = {
+    iceServers: [
+      { urls: 'stun:stun.chat.bilibili.com:3478' },   // 国内实测能拿到 srflx
+      { urls: 'stun:stun.hitv.com:3478' },            // 国内实测能拿到 srflx
+      { urls: 'stun:stun.miwifi.com:3478' },           // 国内实测能拿到 srflx
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
+      { urls: 'stun:stun.nextcloud.com:443' }
+    ],
+    iceCandidatePoolSize: 4,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
+    iceTransportPolicy: 'all'          // 明确不用 relay/TURN
+  };
   function rtcOK(){ return typeof RTCPeerConnection === 'function'; }
   function p2pSend(data){
     if(NET.p2p && NET.p2p.readyState === 'open'){
@@ -218,24 +222,43 @@
     }
     return false;
   }
-  function p2pKill(){
+  function p2pKill(keepIce){
+    NET.p2pClosing = true;
     NET.p2pOk = false;
+    NET.iceOk = false;
+    clearTimeout(NET.p2pTimer);
+    clearTimeout(NET.clientP2PTimer);
     if(NET.p2p){ try{ NET.p2p.close(); }catch(_){} NET.p2p = null; }
     if(NET.pc){ try{ NET.pc.close(); }catch(_){} NET.pc = null; }
+    if(!keepIce) NET.iceQ = [];
+    NET.p2pClosing = false;
   }
   function p2pBind(ch){
     NET.p2p = ch;
     ch.binaryType = 'arraybuffer';
     ch.onopen = function(){
+      if(NET.p2p !== ch) return;
       NET.p2pOk = true;
       NET.p2pAt = performance.now();
-      if(typeof sayComment === 'function') sayComment('⚡ 已建立直连（P2P），延迟更低');
+      NET.p2pTries = 0;
+      NET.directFail = false;
+      NET.p2pReqCount = 0;
+      clearTimeout(NET.clientP2PTimer);
+      if(typeof sayComment === 'function') sayComment('⚡ 直连已建立，低延迟模式');
     };
     ch.onclose = function(){
-      if(NET.p2pOk && typeof sayComment === 'function') sayComment('直连断开，已自动切回中继');
+      if(NET.p2pClosing || !NET.p2p || NET.p2p !== ch) return;
       NET.p2pOk = false;
+      if(NET.role === 'host' && NET.pc){
+        if(typeof sayComment === 'function') sayComment('⚠ 直连断开，正在重连…');
+        retryRtc(NET.pc);
+      } else if(NET.role === 'client'){
+        if(typeof sayComment === 'function') sayComment('⚠ 直连断开，正在请求重连…');
+        requestDirectRestart();
+      }
     };
     ch.onmessage = function(ev){
+      if(NET.p2p !== ch) return;
       if(typeof ev.data === 'string') p2pMsg(ev.data);
     };
   }
@@ -247,29 +270,88 @@
       return;
     }
     if(c0 === 'i'){ if(NET.role === 'host') hostOnInput(s.slice(1)); return; }
-    if(c0 === 'j'){ if(NET.role === 'host'){ var m2=null; try{ m2=JSON.parse(s.slice(1)); }catch(_){ return; } hostOnCtl(m2); } return; }
+    if(c0 === 'j'){
+      if(NET.role === 'host'){
+        var m2=null; try{ m2=JSON.parse(s.slice(1)); }catch(_){ return; }
+        if(m2 && m2.t === 'skip'){ if(G.state === 'replay') G.stateT = 0.001; return; }
+        hostOnCtl(m2);
+      }
+      return;
+    }
     if(c0 === 'p'){ if(s.length > 1) p2pSend('o' + s.slice(1)); return; }
     if(c0 === 'o'){ var n = +s.slice(1); if(n) setRtt(performance.now() - n); return; }
   }
-  function rtcGather(pc, ms){
-    return new Promise(function(res){
-      if(pc.iceGatheringState === 'complete') return res();
-      var done = false;
-      var t = setTimeout(function(){ if(!done){ done = true; res(); } }, ms || 5000);
-      pc.onicegatheringstatechange = function(){
-        if(pc.iceGatheringState === 'complete' && !done){ done = true; clearTimeout(t); res(); }
-      };
-    });
+  function rtcJSON(c){
+    if(!c) return null;
+    try{ if(c.toJSON) return c.toJSON(); }catch(_){}
+    return { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex };
   }
-  function rtcGather(pc, ms){
-    return new Promise(function(res){
-      if(pc.iceGatheringState === 'complete') return res();
-      var done = false;
-      var t = setTimeout(function(){ if(!done){ done = true; res(); } }, ms || 2500);
-      pc.onicegatheringstatechange = function(){
-        if(pc.iceGatheringState === 'complete' && !done){ done = true; clearTimeout(t); res(); }
-      };
-    });
+  function signalUp(obj){
+    if(!NET.code || !obj) return;
+    var s = JSON.stringify(obj);
+    var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
+    for(var i=0;i<arr.length;i++){ try{ arr[i].publish(Rp(NET.code,'c2h'), s); }catch(_){} }
+  }
+  function signalDown(obj){
+    if(!NET.code || !obj) return;
+    netPub(Rp(NET.code,'h2c'), JSON.stringify(obj));
+  }
+  function rtcAddIce(pc, c){
+    if(!c) return;
+    try{
+      if(!pc || !pc.remoteDescription){
+        NET.iceQ.push(c);
+      } else {
+        pc.addIceCandidate(new RTCIceCandidate(c)).catch(function(){});
+      }
+    }catch(_){}
+  }
+  function rtcFlushIce(pc){
+    var q = NET.iceQ || [];
+    NET.iceQ = [];
+    for(var i=0;i<q.length;i++){
+      try{ pc.addIceCandidate(new RTCIceCandidate(q[i])).catch(function(){}); }catch(_){}
+    }
+  }
+  function rtcWireIce(pc, up){
+    pc.onicecandidate = function(e){
+      if(!e.candidate || NET.pc !== pc || !NET.code) return;
+      var c = rtcJSON(e.candidate);
+      if(!c) return;
+      var m = { t:'rtcIce', c:c };
+      if(up) signalUp(m); else signalDown(m);
+    };
+  }
+  function rtcHostIce(c){
+    if(NET.role !== 'host') return;
+    rtcAddIce(NET.pc, c);
+  }
+  function rtcClientIce(c){
+    if(NET.role !== 'client' && NET.role !== 'client-wait') return;
+    rtcAddIce(NET.pc, c);
+  }
+  function retryRtc(pc){
+    if(NET.role !== 'host' || NET.pc !== pc) return;
+    if(NET.p2pOk) return;
+    if((NET.p2pTries || 0) >= 3){
+      if(!NET.directFail){
+        NET.directFail = true;
+        setStatus('⚠ 直连失败：双方换网络或开热点后重试', false);
+        signalDown({ t:'directFail' });
+        if(typeof sayComment === 'function') sayComment('⚠ 直连失败，请双方换网络/开手机热点后重试');
+      }
+      return;
+    }
+    NET.p2pTries = (NET.p2pTries || 0) + 1;
+    clearTimeout(NET.p2pTimer);
+    setTimeout(function(){ if(NET.role === 'host' && NET.pc === pc) rtcHostStart(); }, 1400);
+  }
+  function requestDirectRestart(){
+    if(NET.role !== 'client' || !NET.code) return;
+    var now = performance.now();
+    if(now - (NET.lastRtcReqAt || 0) < 3500) return;
+    NET.lastRtcReqAt = now;
+    signalUp({ t:'rtcReq' });
   }
   function rtcHostStart(){
     if(!rtcOK() || !NET.code) return;
@@ -278,93 +360,82 @@
     try{ pc = new RTCPeerConnection(ICE); }catch(_){ return; }
     NET.pc = pc;
     p2pBind(pc.createDataChannel('g', { ordered: false, maxRetransmits: 0 }));
+    rtcWireIce(pc, false);
     pc.oniceconnectionstatechange = function(){
       var st = pc.iceConnectionState;
-      if(st === 'connected' || st === 'completed'){ NET.p2pOk = true; NET.p2pTries = 0; }
-      else if(st === 'failed'){ NET.p2pOk = false; retryRtc(pc); }
+      if(st === 'connected' || st === 'completed'){ NET.iceOk = true; NET.p2pTries = 0; }
+      else if(st === 'failed'){ NET.iceOk = false; NET.p2pOk = false; retryRtc(pc); }
+    };
+    pc.onconnectionstatechange = function(){
+      if(pc.connectionState === 'failed'){ NET.iceOk = false; NET.p2pOk = false; retryRtc(pc); }
     };
     pc.createOffer()
       .then(function(o){ return pc.setLocalDescription(o); })
-      .then(function(){ return rtcGather(pc, 2500); })
       .then(function(){
-        if(!NET.code || !pc.localDescription) return;
-        netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'rtc', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } }));
-        // 12 秒还没连上：换新端口再试一次（NAT 端口映射有时靠新端口才打穿）
+        if(!NET.code || NET.pc !== pc || !pc.localDescription) return;
+        // 立即发 offer，候选用 trickle 边收边发，不再等 2.5 秒 gather
+        signalDown({ t:'rtc', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
         clearTimeout(NET.p2pTimer);
         NET.p2pTimer = setTimeout(function(){
           if(NET.p2pOk || NET.pc !== pc) return;
-          var ice = pc.iceConnectionState;
-          if(ice === 'connected' || ice === 'completed') return;
           retryRtc(pc);
-        }, 12000);
+        }, 6500);
       }).catch(function(){});
   }
-  function retryRtc(pc){
-    if(NET.role !== 'host' || NET.pc !== pc) return;
-    if((NET.p2pTries || 0) >= 2) return;          // 最多重试 2 次，避免无限循环
-    NET.p2pTries = (NET.p2pTries || 0) + 1;
-    clearTimeout(NET.p2pTimer);
-    setTimeout(function(){ if(NET.role === 'host' && NET.pc === pc) rtcHostStart(); }, 1200);
-  }
   function rtcClientStart(desc){
-    if(!rtcOK() || !desc) return;
-    p2pKill();
+    if(!rtcOK() || !desc || !desc.sdp) return;
+    // 多路信令会送来同一份 offer，不能每份都重建 PC，否则自己取消自己。
+    if(NET.pc && NET.rtcOfferSdp === desc.sdp) return;
+    NET.rtcOfferSdp = desc.sdp;
+    p2pKill(true);   // 保留 offer 之前先到的 ICE，setRemote 后再统一灌入
     var pc;
     try{ pc = new RTCPeerConnection(ICE); }catch(_){ return; }
     NET.pc = pc;
     pc.ondatachannel = function(ev){ p2pBind(ev.channel); };
+    rtcWireIce(pc, true);
     pc.oniceconnectionstatechange = function(){
       var st = pc.iceConnectionState;
-      if(st === 'connected' || st === 'completed'){ NET.p2pOk = true; }
-      else if(st === 'failed'){ NET.p2pOk = false; }
+      if(st === 'connected' || st === 'completed'){ NET.iceOk = true; }
+      else if(st === 'failed'){ NET.iceOk = false; NET.p2pOk = false; requestDirectRestart(); }
+    };
+    pc.onconnectionstatechange = function(){
+      if(pc.connectionState === 'failed'){ NET.iceOk = false; NET.p2pOk = false; requestDirectRestart(); }
     };
     pc.setRemoteDescription(new RTCSessionDescription(desc))
-      .then(function(){ return pc.createAnswer(); })
+      .then(function(){ rtcFlushIce(pc); return pc.createAnswer(); })
       .then(function(a){ return pc.setLocalDescription(a); })
-      .then(function(){ return rtcGather(pc, 2500); })
       .then(function(){
-        if(!NET.code || !pc.localDescription) return;
-        var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
-        for(var ai=0; ai<arr.length; ai++){ try{ arr[ai].publish(Rp(NET.code,'c2h'), JSON.stringify({ t:'rtcAns', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } })); }catch(_){} }
+        if(!NET.code || NET.pc !== pc || !pc.localDescription) return;
+        signalUp({ t:'rtcAns', sdp:{ type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+        clearTimeout(NET.clientP2PTimer);
+        var clientRetry = function(){
+          if(NET.p2pOk || NET.role !== 'client') return;
+          if((NET.p2pReqCount || 0) >= 2) return;
+          NET.p2pReqCount = (NET.p2pReqCount || 0) + 1;
+          requestDirectRestart();
+          NET.clientP2PTimer = setTimeout(clientRetry, 4200);
+        };
+        NET.clientP2PTimer = setTimeout(clientRetry, 5000);
       }).catch(function(){});
   }
   function rtcHostAnswer(desc){
-    if(!NET.pc || !desc) return;
-    try{ NET.pc.setRemoteDescription(new RTCSessionDescription(desc)).catch(function(){}); }catch(_){}
+    if(!NET.pc || !desc || !desc.sdp) return;
+    if(NET.pc.remoteDescription) return;   // 多路信令的重复 answer
+    try{
+      NET.pc.setRemoteDescription(new RTCSessionDescription(desc))
+        .then(function(){ rtcFlushIce(NET.pc); })
+        .catch(function(){});
+    }catch(_){}
   }
-  // 直连可用就用直连，否则回中继 —— 所有上行/下行都走这里
-  function sendUp(str){
-    // 输入必须“双通道”发送：P2P 偶尔单向失效（快照能回来、输入上不去），
-    // 只看 readyState 会误判。两条路都发，主机按序号去重。
-    p2pSend('i' + str);
-    var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
-    for(var i=0;i<arr.length;i++){ try{ arr[i].publish(Rp(NET.code,'c2h'), 'i' + str); }catch(_){} }
-  }
+  // 联机数据只走直连；中继只做房间和信令，绝不承载输入/快照。
+  function sendUp(str){ p2pSend('i' + str); }
   function sendUpJSON(obj){
-    var s = JSON.stringify(obj);
-    // 跳过回放/切人这类控制消息不能只赌 P2P：P2P 单向异常时客机会卡在回放，
-    // 或主机要等下一帧输入里的 activeIdx 才切过去，客机就觉得“按 Tab 后慢半拍”。
-    if(obj && (obj.t === 'skip' || obj.t === 'sel')){
-      p2pSend('j' + s);
-      var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
-      for(var i=0;i<arr.length;i++){ try{ arr[i].publish(Rp(NET.code,'c2h'), s); }catch(_){} }
-      return;
-    }
-    if(p2pSend('j' + s)) return;
-    var arr2 = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
-    for(var j=0;j<arr2.length;j++){ try{ arr2[j].publish(Rp(NET.code,'c2h'), s); }catch(_){} }
+    if(!obj) return;
+    // 重连请求必须走信令（此时直连已经断了）
+    if(obj.t === 'rtcReq'){ signalUp(obj); return; }
+    p2pSend('j' + JSON.stringify(obj));
   }
-  function sendSnap(payload){
-    // 快照也双通道：P2P 只代表“通道开着”，不代表每一帧都送到了。
-    // 主机可能同时挂了 5~7 条中继，对手只在其中一条上；快照必须发到所有中继，
-    // 否则客机会出现“能加入、能看到比分，但球员和球永远不动”的假联机。
-    p2pSend('s' + payload);
-    var now = performance.now();
-    // 中继只跑 30Hz，直连仍保持 50Hz，避免公共 broker 被 7 路 × 50Hz 打爆。
-    if(now - (NET.lastMqSnap || 0) < 33) return;
-    NET.lastMqSnap = now;
-    netPub(Rp(NET.code,'h2c'), payload);
-  }
+  function sendSnap(payload){ p2pSend('s' + payload); }
 
   // ---------------- 面板操作 ----------------
   window.setOnlineMode = function(mode){
@@ -415,7 +486,7 @@
       var rc = document.createElement('span'); rc.textContent = code; rc.className = 'rcode';
       var rm = document.createElement('span');
       rm.className = 'rmeta';
-      rm.textContent = (r.n || '玩家') + ' · ' + (r.hops || 1) + ' 路中继';
+      rm.textContent = (r.n || '玩家') + ' · 直连房间';
       row.appendChild(rc); row.appendChild(rm);
       row.onclick = function(){
         var inp = el('join-code');
@@ -441,7 +512,7 @@
     }).then(function(){
       renderRoomList();
     }).catch(function(){
-      if(list) list.innerHTML = '<div class="rb-empty">公网中继连不上（房号直连仍可尝试）</div>';
+      if(list) list.innerHTML = '<div class="rb-empty">房间服务器连不上（检查网络后重试）</div>';
     });
   };
   window.netCreateRoom = function(){
@@ -449,7 +520,7 @@
     var nick = ((el('net-nick') && el('net-nick').value) || '').trim().slice(0,10) || '球员';
     var btn = el('btn-create-room');
     if(btn) btn.disabled = true;
-    setStatus('正在连接公网中继（多路并行）…');
+    setStatus('正在连接房间服务器…');
     var haveC = (NET.mqs && NET.mqs.length) ? Promise.resolve(NET.mqs) : connectRelays();
     haveC.then(function(mqs){
       NET.mq = mqs[0]; NET.role = 'host'; NET.nick = nick;
@@ -462,7 +533,7 @@
       });
       var rs = el('room-show'); if(rs) rs.classList.remove('hidden');
       var rc = el('room-code'); if(rc) rc.textContent = NET.code;
-      setStatus('房间已创建 · 已挂 ' + mqs.length + ' 个中继 · 等待对手加入…');
+      setStatus('房间已创建 · 等待对手加入 · 直连建立后开赛');
       if(btn) btn.disabled = false;
       NET.keepT = setInterval(function(){
         if(NET.role === 'host' && NET.code) netPub(Rp(NET.code,''), JSON.stringify({ n: nick, t: Date.now() }), true);
@@ -479,7 +550,7 @@
     var nick = ((el('net-nick') && el('net-nick').value) || '').trim().slice(0,10) || '球员';
     var btn = el('btn-join-room');
     if(btn) btn.disabled = true;
-    setStatus('正在连接公网中继（多路并行）…');
+    setStatus('正在连接房间服务器…');
     NET.roomSeen = false; NET.roomMq = null;
     var haveJ = (NET.mqs && NET.mqs.length) ? Promise.resolve(NET.mqs) : connectRelays();
     haveJ.then(function(mqs){
@@ -499,9 +570,7 @@
         if(btn) btn.disabled = false;
         return;
       }
-      // 不再把所有其它中继都关掉：主机现在把快照发到所有中继，
-      // 客机保留多路可以在某条 broker 抽风时继续收快照/发输入，
-      // 重复包由 ts / seq 去重。
+      // 保留多路信令：只用于 SDP/ICE 交换，某条 broker 抽风不影响直连数据。
       NET.mq = NET.roomMq;
       // mqs 只是上一个 .then 的局部变量，这里不能引用；NET.mqs 已由 connectRelays 保留。
       NET.role = 'client-wait';
@@ -576,26 +645,38 @@
       if(payload.charAt(0) === '{'){
         var o = null;
         try{ o = JSON.parse(payload); }catch(_){ return; }
-        if(o.t === 's'){ if(NET.role === 'client') clientOnSnapshot(o); }
-        else if(o.t === 'acc') clientOnAccept(o);
+        if(o.t === 'acc') clientOnAccept(o);
         else if(o.t === 'rst') clientOnReset();
         else if(o.t === 'rtc'){ if(NET.role === 'client' || NET.role === 'client-wait') rtcClientStart(o.sdp); }
-      } else if(payload.charAt(0) === 'o'){
-        setRtt(performance.now() - (+payload.slice(1)));
+        else if(o.t === 'rtcIce'){ rtcClientIce(o.c); }
+        else if(o.t === 'directFail'){
+          NET.directFail = true;
+          setStatus('⚠ 直连失败：双方换网络或开热点后重试', false);
+          if(typeof sayComment === 'function') sayComment('⚠ 直连失败，请双方换网络/开手机热点后重试');
+        }
+        // 注意：h2c 里不再处理 o.t === 's'，快照只允许走直连
       }
       return;
     }
     if(topic.slice(-3) === 'c2h'){
       if(NET.role !== 'host') return;
-      var c0 = payload.charAt(0);
-      if(c0 === 'i'){ hostOnInput(payload); return; }
-      if(c0 === 'p'){ (src || NET.mq).publish(Rp(NET.code,'h2c'), 'o' + payload.slice(1)); return; }
+      if(payload.charAt(0) !== '{') return;   // 输入/快照不再走中继
       try{
         var m = JSON.parse(payload);
         if(m.t === 'j') hostOnJoin(m);
         else if(m.t === 'sel'){ if(NET.role === 'host') hostOnCtl(m); }
         else if(m.t === 'skip'){ if(NET.role === 'host' && G.state === 'replay') G.stateT = 0.001; }
         else if(m.t === 'rtcAns'){ if(NET.role === 'host') rtcHostAnswer(m.sdp); }
+        else if(m.t === 'rtcIce'){ rtcHostIce(m.c); }
+        else if(m.t === 'rtcReq'){
+          if(NET.role === 'host' && !NET.p2pOk && NET.remote && !NET.directFail){
+            var now = performance.now();
+            if(now - (NET.lastHostRtcReq || 0) > 3000){
+              NET.lastHostRtcReq = now;
+              rtcHostStart();
+            }
+          }
+        }
       }catch(_){}
       return;
     }
@@ -659,22 +740,21 @@
     NET.lastSend = 0; NET.snaps.length = 0;
     NET.inSeq = 0; NET.lastInSeq = 0; NET.lastMqSnap = 0;
     NET.p2pTries = 0; clearTimeout(NET.p2pTimer);
+    NET.directFail = false; NET.p2pReqCount = 0; NET.rtcOfferSdp = ''; NET.iceQ = [];
     netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam, sess: sess, sz: G.matchSize }));
     closeOnline();
     showBadge();
-    rtcHostStart();   // 尝试建立点对点直连（失败就继续走中继）
-    if(typeof sayComment === 'function') sayComment('🌐 对手「' + NET.oppNick + '」已加入，比赛开始！');
+    rtcHostStart();   // 只尝试点对点直连；失败会重试，不回落中继
+    if(typeof sayComment === 'function') sayComment('🌐 对手「' + NET.oppNick + '」已加入，正在建立直连…');
   }
   function hostOnInput(str){
-    if(str.charAt(0) === 'i') str = str.slice(1);   // 兼容两种来源（MQTT 带前缀 / 直连已剥）
+    if(str.charAt(0) === 'i') str = str.slice(1);   // 兼容带前缀/已剥前缀
     var parts = str.split('|');
     // 新页面客机的 session 不同：旧客户端的迟到输入不能继续操控新客机。
     // 必须先做 session 过滤，再写 lastInSeq；否则旧 session 的高序号会污染序号，
     // 新客机的 seq=1 会被误判成“旧包”而永远被丢掉。
     if(parts.length > 6 && parts[6] && NET.clientSess && parts[6] !== NET.clientSess) return;
-    // 双通道发送（P2P + MQTT）会各到一份，按序号去重，否则同一帧移动会被算两次。
-    // 注意：只挡住“更旧/相同”的包，不能只挡相同序号；P2P 和 MQTT 乱序到达时，
-    // 旧包晚到会把球员往回拉，这是联机画面抖动的直接原因之一。
+    // 直连包乱序到达时按序号去重，旧包不能把球员往回拉。
     if(parts.length > 5){
       var sq = parts[5] | 0;
       var last = NET.lastInSeq || 0;
@@ -810,9 +890,16 @@
   function r1(v){ return Math.round(v * 10) / 10; }
   function hostPostTick(){
     var now = performance.now();
-    // 直连 50Hz、中继 30Hz：18Hz 时客机每 55ms 才收到一次位置，
-    // 中间全靠外推，画面和主机差得最明显。提高快照频率是最直接的同步改善。
-    var gap = NET.p2pOk ? 20 : 33;
+    if(!NET.p2pOk){
+      var nb0 = el('net-badge');
+      if(nb0){
+        nb0.textContent = (document.hidden ? '⚠ 窗口在后台会变慢 · ' : '') +
+          (NET.directFail ? '⚠ 直连失败 · ' : '📡 正在建立直连 · ') + NET.code;
+      }
+      return;
+    }
+    // 只走直连 50Hz；中继不再承载任何比赛数据
+    var gap = 20;
     if(now - NET.lastSend > gap){
       NET.lastSend = now;
       var ps = new Array((G.teams[0]?G.teams[0].length:11) + (G.teams[1]?G.teams[1].length:11)), n = 0;
@@ -846,8 +933,8 @@
     }
     var nb = el('net-badge');
     if(nb){
-      var off = now - NET.lastInpRecv > 4000;
-      nb.textContent = (document.hidden ? '⚠ 窗口在后台会变慢 · ' : '') + (NET.p2pOk ? '⚡直连 ' : '🌐中继 ') +
+      var off = NET.lastInpRecv && now - NET.lastInpRecv > 4000;
+      nb.textContent = (document.hidden ? '⚠ 窗口在后台会变慢 · ' : '') + '⚡直连 ' +
         (off ? (NET.code + ' · ⚠ 对手可能离线') : (NET.code + (NET.rtt ? ' · ' + NET.rtt + 'ms' : '')));
     }
   }
@@ -867,6 +954,7 @@
     NET.matchSize = G.matchSize;
     NET.remoteIdx = G.matchSize === 3 ? 2 : 9;
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = ''; NET.camInit = false;
+    NET.directFail = false; NET.p2pReqCount = 0; NET.rtcOfferSdp = ''; NET.iceQ = [];
     NET.session = o.sess || NET.session || '';
     NET.lastInpAt = 0; NET.lastMqSnap = 0;
     NET.snap = null; NET.snapAt = 0; NET.lastSc = null; NET.lastClockTxt = '';
@@ -877,7 +965,7 @@
     startGame();
     closeOnline();
     showBadge();
-    if(typeof sayComment === 'function') sayComment('🌐 已连上房主，开始比赛！');
+    if(typeof sayComment === 'function') sayComment('📡 已连上房主，正在建立直连…');
   }
   function clientOnReset(){
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = '';
@@ -898,7 +986,7 @@
   // 不再用“落后 interpDelay 的延迟插值”（那是画面慢半拍、对手像不动的根源）
   function clientOnSnapshot(o){
     if(!o || !o.ps) return;
-    // 多中继/直连可能各送一份；同一时间戳的旧快照直接丢掉，避免画面被拉回去抖一下
+    // 直连重复包可能各送一份；同一时间戳的旧快照直接丢掉，避免画面被拉回去抖一下
     if(o.ts && NET.lastSnapTs && o.ts <= NET.lastSnapTs) return;
     if(o.ts) NET.lastSnapTs = o.ts;
     var now = performance.now();
@@ -1127,15 +1215,10 @@
   }
   function clientSendInput(){
     var now = performance.now();
-    // 输入频率：直连 50Hz、中继 25Hz（原来 18Hz，转身/变向明显慢半拍）
-    if(now - NET.lastInpAt < (NET.p2pOk ? 20 : 40)) return;
-    // 只要有一条通路在（直连通道 或 MQTT 中继）就必须发；之前只认 MQTT，
-    // 中继掉线时客机就完全动不了
+    // 输入 50Hz；没有直连就不发，绝不退回中继制造高延迟
+    if(now - NET.lastInpAt < 20) return;
     var canP2P = NET.p2p && NET.p2p.readyState === 'open';
-    var canMq  = false;
-    for(var mi=0; mi<(NET.mqs||[]).length; mi++){ if(NET.mqs[mi] && NET.mqs[mi].connected){ canMq = true; break; } }
-    if(!canMq && NET.mq && NET.mq.connected) canMq = true;
-    if(!canP2P && !canMq) return;
+    if(!canP2P) return;
     NET.lastInpAt = now;
     var dx = ((keys['KeyD'] || keys['ArrowRight'] || keys['Numpad6']) ? 1 : 0) - ((keys['KeyA'] || keys['ArrowLeft'] || keys['Numpad4']) ? 1 : 0);
     var dz = ((keys['KeyS'] || keys['ArrowDown'] || keys['Numpad2']) ? 1 : 0) - ((keys['KeyW'] || keys['ArrowUp'] || keys['Numpad8']) ? 1 : 0);
@@ -1171,7 +1254,7 @@
     sendUp(dx + '|' + dz + '|' + sp + '|' + act + '|' + G.activeIdx + '|' + NET.inSeq + '|' + (NET.session || ''));
     if(now - NET.pingAt > 2000 && !document.hidden){
       NET.pingAt = now;
-      if(!p2pSend('p' + Math.round(now)) && canMq) NET.mq.publish(Rp(NET.code,'c2h'), 'p' + Math.round(now));
+      p2pSend('p' + Math.round(now));
     }
   }
   // 客机本地预测：自己的球员先按同一套速度规则在本地走，再向主机快照平滑收敛。
@@ -1270,16 +1353,21 @@
     renderer.render(scene, camera);
     var nb = el('net-badge');
     if(nb){
-      var lost = performance.now() - NET.lastRecv > 4000;
-      nb.textContent = (NET.p2pOk ? '⚡直连 ' : '🌐中继 ') +
+      var lost = NET.p2pOk && NET.lastRecv && performance.now() - NET.lastRecv > 4000;
+      nb.textContent = (NET.p2pOk ? '⚡直连 ' : (NET.directFail ? '⚠ 直连失败 · ' : '📡 正在建立直连 · ')) +
         (lost ? (NET.code + ' · ⚠ 连接中断') : (NET.code + (NET.rtt ? ' · ' + NET.rtt + 'ms' : '')));
     }
-    if(performance.now() - NET.lastRecv > 4000) setStatus('连接中断', false);
+    if(!NET.p2pOk){
+      if(NET.directFail) setStatus('⚠ 直连失败：双方换网络或开热点后重试', false);
+      else setStatus('正在建立直连（P2P）…');
+    } else if(NET.lastRecv && performance.now() - NET.lastRecv > 4000){
+      setStatus('连接中断', false);
+    }
   }
 
   function showBadge(){
     var nb = el('net-badge');
-    if(nb){ nb.style.display = 'block'; nb.textContent = '🌐 房号 ' + NET.code; }
+    if(nb){ nb.style.display = 'block'; nb.textContent = '📡 房号 ' + NET.code; }
   }
 
   // ---------------- 钩子（单机模式全部透传） ----------------
@@ -1370,8 +1458,9 @@
   window.netSelfTest = function(){
     return {
       role: NET.role, code: NET.code, broker: NET.broker,
-      relays: (NET.mqs || []).length, brokers: BROKERS.length,
-      direct: NET.p2pOk, pc: !!NET.pc,
+      signals: (NET.mqs || []).length, signalsTotal: BROKERS.length,
+      direct: NET.p2pOk, ice: NET.iceOk, pc: !!NET.pc,
+      directFail: NET.directFail, tries: NET.p2pTries,
       snaps: NET.snaps.length, rtt: NET.rtt,
       remote: NET.remote ? [NET.remote.team, NET.remote.idx, r1(NET.remote.pos.x), r1(NET.remote.pos.z)] : null
     };
