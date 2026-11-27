@@ -110,8 +110,11 @@
     'wss://broker.emqx.io:8084/mqtt',
     'ws://broker.emqx.io:8083/mqtt',
     'wss://broker-cn.emqx.io:8084/mqtt',
+    'ws://broker-cn.emqx.io:8083/mqtt',
     'wss://mqtt.eclipseprojects.io/mqtt',
-    'wss://test.mosquitto.org:8081/mqtt'
+    'wss://test.mosquitto.org:8081/mqtt',
+    'ws://test.mosquitto.org:8080/mqtt',
+    'wss://broker.mqttdashboard.com:8000/mqtt'
   ];
   var NS = 'zhujcup2026/';
   var NET = window.NET = {
@@ -120,7 +123,7 @@
     broker: '', mq: null, mqs: [], roomMq: null, roomSeen: false,
     rooms: {}, p2p: null, p2pOk: false, pc: null, p2pAt: 0, p2pRestarted: false,
     p2pTries: 0, p2pTimer: null,
-    myTeam: 0, remoteTeam: 1, remoteIdx: 9,
+    myTeam: 0, remoteTeam: 1, remoteIdx: 9, matchSize: 11,
     remote: null,
     inp: { x: 0, y: 0, sp: 0 },
     act: [],
@@ -339,8 +342,9 @@
   }
   function sendUpJSON(obj){
     var s = JSON.stringify(obj);
-    // 跳过回放这类控制消息不能只赌 P2P：P2P 单向异常时客机会永远卡在回放。
-    if(obj && obj.t === 'skip'){
+    // 跳过回放/切人这类控制消息不能只赌 P2P：P2P 单向异常时客机会卡在回放，
+    // 或主机要等下一帧输入里的 activeIdx 才切过去，客机就觉得“按 Tab 后慢半拍”。
+    if(obj && (obj.t === 'skip' || obj.t === 'sel')){
       p2pSend('j' + s);
       var arr = (NET.mqs && NET.mqs.length) ? NET.mqs : (NET.mq ? [NET.mq] : []);
       for(var i=0;i<arr.length;i++){ try{ arr[i].publish(Rp(NET.code,'c2h'), s); }catch(_){} }
@@ -363,13 +367,26 @@
   }
 
   // ---------------- 面板操作 ----------------
-  window.openOnline = function(){
+  window.setOnlineMode = function(mode){
+    if(NET.role){ setStatus('已在房间中，退出后才能切换人数', false); return; }
+    NET.matchSize = mode === 3 ? 3 : 11;
+    G.matchSize = NET.matchSize;
+    G.matchMode = NET.matchSize === 3 ? '3v3' : '11v11';
+    var p = el('online-panel');
+    var ttl = p && p.querySelector('h2');
+    if(ttl) ttl.textContent = NET.matchSize === 3 ? '🌐 联机对战 · 3v3 小队' : '🌐 联机对战 · 11v11';
+    var b11 = el('mode-11'), b3 = el('mode-3');
+    if(b11){ b11.classList.toggle('primary', NET.matchSize !== 3); }
+    if(b3){ b3.classList.toggle('primary', NET.matchSize === 3); }
+    setStatus(NET.matchSize === 3 ? '3v3：门将 + 后卫 + 前锋，双方各操控一队。' : '房号即房间钥匙，把它发给朋友即可联机。');
+  };
+  window.openOnline = function(mode){
     var p = el('online-panel');
     if(!p) return;
     p.classList.remove('hidden');
     var nk = el('net-nick');
     if(nk && !nk.value) nk.value = '球员' + (Math.floor(Math.random()*90) + 10);
-    setStatus('房号即房间钥匙，把它发给朋友即可联机。');
+    window.setOnlineMode(mode === 3 ? 3 : 11);
     window.netRefreshRooms();
   };
   window.closeOnline = function(){
@@ -612,7 +629,7 @@
         NET.lastInSeq = 0;
         NET.lastMqSnap = 0;
       }
-      netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam, sess: sess || NET.clientSess || '' }));
+      netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam, sess: sess || NET.clientSess || '', sz: G.matchSize }));
       if(!NET.p2pOk) rtcHostStart();   // 直连没建起来就再喊一次
       return;
     }
@@ -621,9 +638,14 @@
     NET.matchStarted = true;
     NET.remoteTeam = 1 - NET.myTeam;
     G.userTeam = NET.myTeam;
+    // 房主创建房间时决定 11v11 / 3v3；客户端不能自己改，避免两边人数不一致
+    G.matchSize = NET.matchSize === 3 ? 3 : 11;
+    G.matchMode = G.matchSize === 3 ? '3v3' : '11v11';
+    G.levelMode = false;
     startGame();
     if(NET.remote) NET.remote.remoteCtl = false;
-    NET.remote = G.teams[NET.remoteTeam][9];
+    NET.remoteIdx = G.matchSize === 3 ? 2 : 9;
+    NET.remote = G.teams[NET.remoteTeam][NET.remoteIdx];
     if(NET.remote){
       NET.remote.remoteCtl = true;
       NET.remote.facing = NET.remote.team === 0 ? 0 : Math.PI;
@@ -637,7 +659,7 @@
     NET.lastSend = 0; NET.snaps.length = 0;
     NET.inSeq = 0; NET.lastInSeq = 0; NET.lastMqSnap = 0;
     NET.p2pTries = 0; clearTimeout(NET.p2pTimer);
-    netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam, sess: sess }));
+    netPub(Rp(NET.code,'h2c'), JSON.stringify({ t:'acc', team: NET.remoteTeam, sess: sess, sz: G.matchSize }));
     closeOnline();
     showBadge();
     rtcHostStart();   // 尝试建立点对点直连（失败就继续走中继）
@@ -670,7 +692,8 @@
     // 操控编号也每帧带一份：切人消息丢了也不会出现“客机在控 A、主机还在控 B”
     if(parts.length > 4){
       var si = parts[4] | 0;
-      if(si >= 0 && si < 11 && (!NET.remote || NET.remote.idx !== si)) hostOnCtl({ t:'sel', i:si });
+      var sz = (G.teams[NET.remoteTeam] || []).length;
+      if(si >= 0 && si < sz && (!NET.remote || NET.remote.idx !== si)) hostOnCtl({ t:'sel', i:si });
     }
     NET.lastInpRecv = performance.now();
   }
@@ -733,10 +756,10 @@
       p.velx = 0; p.velz = 0;
     }
     clampPlayer(p);
-    // 拾球（与玩家同一规则）
+    // 拾球（与玩家同一规则：自己控制的球员只在脚下 1.55m 内接球，不能隔空吸球）
     if(!ball.owner && ball.speed < 22 &&
        !(typeof selfPassLock === 'function' && selfPassLock(p)) &&
-       dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R + 2.0){
+       dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R){
       ball.owner = p; p.owns = true; ball.passTarget = null; G.oppPasses = 0; p.decideT = 0.1;
       ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
     }
@@ -744,11 +767,20 @@
     // 客机的按键会晚 RTT/2 才到，如果这半拍里主机判定“没控球”，客机会白按一次；
     // 所以球就在脚边时补一个宽容拾球，保证联机和单机一样按得动
     if(NET.act.length && G.state === 'play'){
-      if(!p.owns && !ball.owner && ball.speed < 12 &&
-         dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R + 1.2){
+      if(!p.owns && !ball.owner && ball.speed < 22 &&
+         dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R){
         ball.owner = p; p.owns = true; ball.passTarget = null; ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
       }
-      if(!p.owns){ NET.act.length = 0; return; }
+      if(!p.owns){
+        // 客机刚切人/球还没到脚边时按的射门/传球，不要立刻清掉：
+        // 给 350ms 等球权到手；如果一直没球再丢弃，避免下一脚误触。
+        if(!NET.actHoldAt) NET.actHoldAt = performance.now();
+        if(performance.now() - NET.actHoldAt > 350){
+          NET.act.length = 0; NET.actHoldAt = 0;
+        }
+        return;
+      }
+      NET.actHoldAt = 0;
       var acts = NET.act.splice(0);
       for(var i=0;i<acts.length;i++){
         if(acts[i] === 's'){
@@ -783,7 +815,7 @@
     var gap = NET.p2pOk ? 20 : 33;
     if(now - NET.lastSend > gap){
       NET.lastSend = now;
-      var ps = new Array(22), n = 0;
+      var ps = new Array((G.teams[0]?G.teams[0].length:11) + (G.teams[1]?G.teams[1].length:11)), n = 0;
       for(var ti=0; ti<2; ti++){
         var arr = G.teams[ti];
         for(var i=0;i<arr.length;i++){
@@ -828,6 +860,12 @@
     NET.myTeam = (o.team | 0) || 0;
     NET.remoteTeam = 1 - NET.myTeam;
     G.userTeam = NET.myTeam;
+    // 跟随房主的房间人数（3v3 / 11v11），否则客机会用 11 人阵容接 6 人快照
+    G.matchSize = (o.sz === 3) ? 3 : 11;
+    G.matchMode = G.matchSize === 3 ? '3v3' : '11v11';
+    G.levelMode = false;
+    NET.matchSize = G.matchSize;
+    NET.remoteIdx = G.matchSize === 3 ? 2 : 9;
     NET.snaps.length = 0; NET.endShown = false; NET.bnKey = ''; NET.camInit = false;
     NET.session = o.sess || NET.session || '';
     NET.lastInpAt = 0; NET.lastMqSnap = 0;
@@ -876,13 +914,13 @@
     applySnapshotAnim(o);
   }
   // 客机自己录一份“进球前的比赛帧”，进球后用同一套回放镜头播，
-  // 不然主机会播 5 秒回放，客机只能干看实时画面，两边完全不同步
+  // 不然主机会播 2.2 秒回放，客机只能干看实时画面，两边完全不同步
   function clientRecordReplay(o){
     if(!o.ps || !o.bl) return;
     if(o.st !== 'play') return;
     NET.replaySeq = (NET.replaySeq || 0) + 1;
     if(NET.replaySeq % 2) return;      // 30Hz 快照隔一张录一帧，回放约 15fps，够用且省内存
-    var players = new Array(22), n = 0;
+    var players = new Array((G.teams[0]?G.teams[0].length:11) + (G.teams[1]?G.teams[1].length:11)), n = 0;
     for(var ti=0; ti<2; ti++){
       var len = G.teams[ti] ? G.teams[ti].length : 11;
       for(var i=0;i<len;i++){
@@ -1166,7 +1204,7 @@
     var hostBallOwner = NET.snap && NET.snap.bo;
     var hostOtherOwns = !!(hostBallOwner && !(hostBallOwner[0] === NET.myTeam && hostBallOwner[1] === p.idx));
     if(!hostOtherOwns && !ball.owner && G.state === 'play' && !selfPassLock(p) &&
-       ball.speed < 22 && dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R + 1.4){
+       ball.speed < 22 && dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) < PICKUP_R){
       ball.owner = p; p.owns = true; ball.passTarget = null;
       ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
       NET.localHoldAt = performance.now();
@@ -1196,10 +1234,10 @@
     if(typeof updateConfetti === 'function') updateConfetti(dt);
     var replaying = !!(G.state === 'replay' && G.replayFrames && G.replayFrames.length);
     if(replaying){
-      // 客机用自己录的快照帧播回放；和主机共用“按 5 秒进度连续插值”的算法，
+      // 客机用自己录的快照帧播回放；和主机共用“按 2.2 秒进度连续插值”的算法，
       // 不再 0.6 帧硬跳、也不会播完循环回第一帧闪一下。
       G.stateT = Math.max(0, (G.stateT || 0) - dt);
-      var total = 5.0;
+      var total = 2.2;
       var prog = Math.max(0, Math.min(1, 1 - G.stateT / total));
       var flen = G.replayFrames.length;
       var start = Math.max(0, flen - 76);
@@ -1268,11 +1306,17 @@
     return _runFrame(dt);
   };
   userShoot = function(){
-    if(NET.role === 'client'){ if(G.state === 'play') NET.act.push('s'); return; }
+    if(NET.role === 'client'){
+      if(G.state === 'play'){ NET.act.push('s'); return true; }
+      return false;
+    }
     return _userShoot.apply(this, arguments);
   };
   userPass = function(){
-    if(NET.role === 'client'){ if(G.state === 'play') NET.act.push('p'); return; }
+    if(NET.role === 'client'){
+      if(G.state === 'play'){ NET.act.push('p'); return true; }
+      return false;
+    }
     return _userPass.apply(this, arguments);
   };
   switchPlayer = function(){
@@ -1339,10 +1383,13 @@
   // 榜单多路备份：任意一路连得上就能看榜、上榜，避免被单一中继限流卡死
   var RANK_BROKERS = [
     'wss://broker.hivemq.com:8884/mqtt',
+    'ws://broker.hivemq.com:8000/mqtt',
     'wss://broker.emqx.io:8084/mqtt',
     'wss://broker-cn.emqx.io:8084/mqtt',
     'wss://mqtt.eclipseprojects.io/mqtt',
-    'wss://test.mosquitto.org:8081/mqtt'
+    'wss://test.mosquitto.org:8081/mqtt',
+    'ws://test.mosquitto.org:8080/mqtt',
+    'wss://broker.mqttdashboard.com:8000/mqtt'
   ];
 
   // 年度榜：不再按周清零，避免周一零点榜单突然变空

@@ -187,7 +187,30 @@
   #banner .big { font-size:64px; font-weight:900; letter-spacing:6px; color:#fff; text-shadow:0 0 30px rgba(227,6,19,.8),0 6px 40px rgba(0,0,0,.6); opacity:0; transition:opacity .3s; }
   #banner .sub { font-size:22px; font-weight:700; color:var(--wc-gold); margin-top:8px; opacity:0; transition:opacity .3s; }
 
-  .diff-row { display:flex; gap:14px; margin:0 0 20px; }
+  .diff-row { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin:0 0 14px; }
+  .online-row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px 0 2px; }
+  /* 关卡模式 */
+  #level-panel { z-index:74; }
+  #level-box { width:min(760px,94vw); max-height:calc(100vh - 28px); overflow:auto; padding:20px 22px; border-radius:20px;
+    background:linear-gradient(180deg, rgba(18,22,38,.97), rgba(6,10,18,.99));
+    border:1px solid rgba(255,215,90,.35); box-shadow:0 24px 70px rgba(0,0,0,.7); }
+  #level-box h2 { color:#ffe7a0; letter-spacing:2px; margin:0 0 4px; }
+  .level-tabs { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:12px 0 14px; }
+  .level-tabs .diff-btn { padding:9px 16px; font-size:14px; }
+  .level-grid { display:grid; grid-template-columns:repeat(10,1fr); gap:7px; margin:8px 0 14px; }
+  .level-cell { cursor:pointer; border-radius:9px; border:1px solid rgba(120,200,255,.25); background:rgba(255,255,255,.05);
+    color:#cfe8ff; font-size:12px; font-weight:800; padding:8px 2px; text-align:center; transition:.15s; }
+  .level-cell:hover { transform:translateY(-2px); border-color:#ffe24a; }
+  .level-cell.locked { opacity:.35; cursor:not-allowed; }
+  .level-cell.cleared { background:rgba(40,190,110,.28); border-color:rgba(80,255,160,.55); color:#d9ffe9; }
+  .level-cell.boss { border-color:rgba(255,210,90,.6); }
+  .level-cell.current { outline:2px solid #ffe24a; }
+  .level-legend { font-size:12px; color:#9ab6d4; line-height:1.8; text-align:left; background:rgba(255,255,255,.04); padding:10px 12px; border-radius:10px; }
+  #level-hud { position:absolute; left:16px; top:208px; z-index:35; display:none; padding:8px 12px; border-radius:10px;
+    background:rgba(10,20,34,.82); border:1px solid rgba(255,220,90,.4); color:#ffe7a0; font-size:13px; font-weight:800; line-height:1.5; }
+  @media(max-width:700px){ .level-grid{grid-template-columns:repeat(5,1fr);} #level-box{padding:16px 14px;} }
+  /* 键位面板在手机上可能比屏幕高，之前底部行被裁掉看不到；允许内部滚动 */
+  #keys-box { max-height:calc(100vh - 24px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .diff-btn { pointer-events:auto; cursor:pointer; font-size:16px; font-weight:800; letter-spacing:2px; color:#eaf2ff;
     background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.22); border-radius:14px; padding:12px 22px; transition:.2s; }
   .diff-btn:hover { transform:translateY(-3px); border-color:var(--wc-gold); }
@@ -512,10 +535,11 @@
 </div>
 
 <!-- Menu overlay -->
+<div id="level-hud" class="hidden"></div>
 <div id="menu" class="overlay">
   <div id="wc-trophy">🏆</div>
   <div id="menu-title">zhuj杯 2026</div>
-  <div id="menu-sub">2026 世界杯 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11 v 11 全场对决 · V8</div>
+  <div id="menu-sub">2026 世界杯 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11v11 / 3v3 · 100 关挑战 · V8</div>
   <div class="team-cards">
     <div id="cardA" class="team-card selA" onclick="selectTeam(0)">
       <div class="flag">🐟</div>
@@ -537,19 +561,38 @@
     <div class="fbox"><img src="fb/32.jpg" alt="f4"><div class="cap">33 号</div></div>
   </div>
   <div class="diff-row">
-    <button id="diff-easy" class="diff-btn selD" onclick="setDifficulty('easy')">😊 简单模式</button>
-    <button id="diff-hard" class="diff-btn" onclick="setDifficulty('hard')">🔥 困难模式</button>
-    <button class="diff-btn" onclick="toggleSquad()">📋 查看阵容</button>
+    <button id="diff-easy" class="diff-btn selD" onclick="setDifficulty('easy')">😊 简单</button>
+    <button id="diff-hard" class="diff-btn" onclick="setDifficulty('hard')">🔥 困难</button>
+    <button id="diff-nightmare" class="diff-btn" onclick="setDifficulty('nightmare')">😈 噩梦</button>
+    <button class="diff-btn" onclick="toggleSquad()">📋 阵容</button>
   </div>
   <div class="online-row">
-    <button id="btn-online" class="diff-btn" onclick="openOnline()">🌐 联机对战</button>
-    <button id="btn-rank" class="diff-btn" onclick="openRank()">🏅 排位赛</button>
-    <button class="diff-btn" onclick="openKeys()">⌨️ 键位设置</button>
+    <button id="btn-online" class="diff-btn" onclick="openOnline()">🌐 联机</button>
+    <button id="btn-rank" class="diff-btn" onclick="openRank()">🏅 排位</button>
+    <button id="btn-levels" class="diff-btn" onclick="openLevels()">🎯 关卡</button>
+    <button class="diff-btn" onclick="openKeys()">⌨️ 键位</button>
   </div>
-  <button id="btn-start" class="btn-primary" onclick="startGame()">⚽ 开 始 比 赛</button>
+  <button id="btn-start" class="btn-primary" onclick="startStandardGame()">⚽ 开 始 比 赛</button>
   <div id="controls-info">
     <span class="key">W A S D</span> 移动　<span class="key">Shift</span> 加速　<span class="key">空格</span> 射门　
     <span class="key">K</span> 传球　<span class="key">Tab</span> 切换球员　<span class="key">P</span> 暂停
+  </div>
+</div>
+
+<!-- 100 关关卡模式 -->
+<div id="level-panel" class="overlay hidden">
+  <div id="level-box">
+    <h2>🎯 100 关挑战</h2>
+    <div class="sub" id="level-sub">固定关卡 3 关教学 + 97 关正式关 · 第 50 关解锁皮肤 · 全通金色皮肤</div>
+    <div class="level-tabs">
+      <button id="level-tab-fixed" class="diff-btn selD" onclick="levelTab('fixed')">📌 固定关卡</button>
+      <button id="level-tab-random" class="diff-btn" onclick="levelTab('random')">🎲 随机挑战</button>
+      <button id="level-tab-skin" class="diff-btn" onclick="levelTab('skin')">🎨 皮肤</button>
+      <button class="diff-btn" onclick="closeLevels()">✖ 关闭</button>
+    </div>
+    <div id="level-info"></div>
+    <div id="level-grid" class="level-grid"></div>
+    <div id="level-legend" class="level-legend"></div>
   </div>
 </div>
 
@@ -558,6 +601,10 @@
   <div id="online-box">
     <h2>🌐 联机对战</h2>
     <div class="sub">无需自建服务器 · 通过公网中继直连<br>房主创建房间 → 把 4 位房号发给朋友 → 朋友输入房号加入</div>
+    <div class="on-row" style="justify-content:center;gap:10px">
+      <button id="mode-11" class="on-btn primary" style="flex:1" onclick="setOnlineMode(11)">11v11 标准</button>
+      <button id="mode-3" class="on-btn" style="flex:1" onclick="setOnlineMode(3)">3v3 小队</button>
+    </div>
     <div class="on-row"><span style="font-size:13px;color:#9fe6ff;white-space:nowrap">昵称</span><input id="net-nick" maxlength="10" placeholder="你的昵称"></div>
     <div class="on-row"><button id="btn-create-room" class="on-btn primary" style="flex:1" onclick="netCreateRoom()">➕ 创建房间（我当房主）</button></div>
     <div id="room-show" class="hidden">
@@ -585,7 +632,7 @@
 <div id="rank-panel" class="overlay hidden">
   <div id="rank-box">
     <h2>🏅 排位赛</h2>
-    <div class="sub">固定规则：小鱼鱼队 · 困难模式 · 全场约 3 分钟<br>得分 = 进球 × 100 + 净胜球 × 10（净胜球为负按 0 计）</div>
+    <div class="sub">固定规则：小鱼鱼队 · 排位配平（对手略降、补强我方防守 AI）· 全场约 3 分钟<br>得分 = 进球 × 100 + 净胜球 × 10（净胜球为负按 0 计）</div>
     <div class="rank-line"><span style="font-size:13px;color:#ffe9a8;white-space:nowrap">昵称</span>
       <input id="rank-nick" maxlength="10" placeholder="你的昵称"></div>
     <div class="rank-line">
@@ -625,6 +672,8 @@
         <button class="opt" data-v="0.5">省电</button><button class="opt" data-v="1">流畅</button><button class="opt" data-v="2">高清</button></span></div>
       <div class="key-row"><span>阴影</span><span class="opt-grp" id="opt-shadow">
         <button class="opt" data-v="1">开</button><button class="opt" data-v="0">关(更省电)</button></span></div>
+      <div class="key-row"><span>进球回放</span><span class="opt-grp" id="opt-replay">
+        <button class="opt" data-v="1">开</button><button class="opt" data-v="0">关</button></span></div>
     </div>
     <div id="key-rows"></div>
     <div class="on-row" style="margin-top:14px">
@@ -671,7 +720,7 @@ const TOURNAMENT = 'zhuj杯 2026';
 const FIELD_W = 105, FIELD_H = 68, HALF_W = 52.5, HALF_H = 34;
 const GOAL_W = 7.32, GOAL_H = 2.44, GOAL_D = 2.4;
 const BALL_R = 0.34, PICKUP_R = 1.55, GRAVITY = 22, BALL_FRICTION = 0.55;
-const WALK_SPD = 7.6, SPRINT_SPD = 11.2;
+const WALK_SPD = 7.9, SPRINT_SPD = 11.5;
 // —— 难度平衡（zhuj杯 2026 版：AI 有威胁但玩家完全能赢）——
 let AI_SPRINT = 10.4;            // AI 冲刺速度（简单 10.4 / 困难 11.8）
 let AI_TACKLE_CHANCE = 0.16;     // AI 防守抢断成功率
@@ -687,6 +736,12 @@ const FORMATION = [
   [-46, 0, 'GK'], [-17,-27,'DF'], [-11,-12,'DF'], [-11,12,'DF'], [-17,27,'DF'],
   [ 3,-28,'MF'], [ 3,-8,'MF'], [ 3, 8,'MF'], [ 3,28,'MF'],
   [21,-13,'ST'], [21,13,'ST']
+];
+// 3v3：门将 + 一名后卫 + 一名前锋，共 3 人
+const FORMATION_3V3 = [
+  { x:-45, z:0,  role:'GK' },
+  { x:-18, z:0,  role:'DF' },
+  { x: 14, z:0,  role:'ST' }
 ];
 const ROLE_W = { GK:0.04, DF:0.16, MF:0.34, ST:0.5 };
 
@@ -1248,15 +1303,19 @@ function createPlayer(faceIdx, jerseyColor, num, sockColor){
 
 // ---------------- 球队 ----------------
 class Player {
-  constructor(team, idx, side){
+  constructor(team, idx, side, spec){
     this.team = team; this.idx = idx; this.side = side;
-    const role = FORMATION[idx][2];
+    const base = FORMATION[idx] || FORMATION[10];
+    const role = spec && spec.role ? spec.role : base[2];
     this.role = role;
-    this.homeX = FORMATION[idx][0];
-    this.homeZ = FORMATION[idx][1];
+    this.homeX = spec && typeof spec.x === 'number' ? spec.x : base[0];
+    this.homeZ = spec && typeof spec.z === 'number' ? spec.z : base[1];
     const num = idx + 1;
     const col = TEAM_COLORS[team];
-    this.mesh = createPlayer(faceIndexFor(idx, side), role==='GK'? col.gk : col.main, num, role==='GK'? col.gk : col.main);
+    // 用户队伍可以换皮肤；门将单独颜色
+    const kitMain = (team === G.userTeam && G.kitMain) ? G.kitMain : col.main;
+    const kitGK = (team === G.userTeam && G.kitGK) ? G.kitGK : col.gk;
+    this.mesh = createPlayer(faceIndexFor(idx, side), role==='GK'? kitGK : kitMain, num, role==='GK'? kitGK : kitMain);
     this.pos = { x: this.homeX * (side===0? 1:-1), z: this.homeZ };
     this.facing = side===0? 0 : Math.PI;
     this.speed = WALK_SPD + (role==='ST'? 0.4 : 0);
@@ -1264,6 +1323,7 @@ class Player {
     this.velx = 0; this.velz = 0;
     this.owns = false;
     this.decideT = Math.random()*0.3;
+    this.holdT = 0;                     // 门将快速发球倒计时（不是长时间抱球）
     this.tackleCd = 0;
     this.celebrateT = 0;               // 进球庆祝计时
     this.cut = (Math.random()-0.5)*14; // 带球偏好变向（让 AI 进攻线路更多样）
@@ -1348,7 +1408,12 @@ const G = {
   replayIdx:0,
   scorerPlayer:null,
   oppPasses:0,         // 对手本回合传球数（简单模式至少 3 次才能射门/带球进球）
-  difficulty:'easy',   // easy=简单（有3传限制） hard=困难（无限制+更强）
+  difficulty:'easy',   // easy=简单（有3传限制） hard=困难（无限制+更强） nightmare=噩梦/更强配合
+  matchSize:11,        // 11=标准 3=3v3
+  matchMode:'11v11',
+  levelMode:false,
+  levelId:0,
+  kitMain:'', kitGK:'',
   kickoffPlan:null,    // 开球战术：short/back/long/wing/dribble
   kickoffT:0,
   kickoffTaker:null,
@@ -1363,10 +1428,23 @@ const G = {
 let activePlayer = null;
 
 function initTeams(){
+  // 先移除旧队伍模型（3v3/11v11 切换、换皮肤重建时不能让旧球员留在场上）
+  for(const arr of G.teams){
+    if(!arr) continue;
+    for(const p of arr){ try{ scene.remove(p.mesh); }catch(_){} }
+  }
+  const size = G.matchSize === 3 ? 3 : 11;
   for(let side=0; side<2; side++){
     const arr = [];
-    for(let i=0;i<11;i++) arr.push(new Player(side, i, side));
+    for(let i=0;i<size;i++){
+      const spec = size===3 ? FORMATION_3V3[i] : null;
+      arr.push(new Player(side, i, side, spec));
+    }
     G.teams[side] = arr;
+  }
+  // 切换人数/换皮肤重建后，操控编号可能越界（3v3 只有 0~2）
+  if(!G.teams[G.userTeam] || !G.teams[G.userTeam][G.activeIdx]){
+    G.activeIdx = size - 1;
   }
 }
 
@@ -1418,11 +1496,26 @@ function updateActive(){
   const arr = G.teams[G.userTeam];
   for(const p of arr){ p.mesh.userData.ring.visible = false; if(p.mesh.userData.ringGlow) p.mesh.userData.ringGlow.visible = false; }
   activePlayer = arr[G.activeIdx];
+  if(!activePlayer) return;
   activePlayer.mesh.userData.ring.visible = true;
   if(activePlayer.mesh.userData.ringGlow) activePlayer.mesh.userData.ringGlow.visible = true;
   const roleName = {GK:'门将', DF:'后卫', MF:'中场', ST:'前锋'}[activePlayer.role] || '';
   const el = document.getElementById('active-info');
   if(el) el.textContent = '▶ 你操控：#' + (G.activeIdx+1) + ' ' + roleName;
+}
+
+// 切人那一下只判断“球是否真的在脚下”，不再把 1.55m 外、甚至滚到 3.5m 的球隔空吸过来。
+// 原来切人只换 activeIdx/光圈，拾球要等下一帧 runFrame；这里保留“当帧接脚下球”以维持
+// Tab 后的响应，但范围回到原版 PICKUP_R，速度快的球也不吸。
+function tryActivePickupNow(){
+  const p = activePlayer;
+  if(!p || !G || G.state !== 'play' || G.paused || ball.owner) return false;
+  if(ball.speed >= 22 || selfPassLock(p)) return false;
+  if(dist2D(p.pos.x, p.pos.z, ball.pos.x, ball.pos.z) >= PICKUP_R) return false;
+  ball.owner = p; p.owns = true; ball.passTarget = null;
+  G.oppPasses = 0; p.decideT = 0.08;
+  ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
+  return true;
 }
 
 // ---------------- 音效 ----------------
@@ -1463,6 +1556,35 @@ function sfx(name){
 // ---------------- 输入 ----------------
 const keys = {};
 const KEYFOR = { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', sprint:'ShiftLeft' };
+// 切人/接球后 0.4 秒内按下的射门/传球先存着；等球员真正拿到球这一帧再出脚，
+// 不把“刚切过去、球还没到脚边”的按键直接丢掉。只影响动作键，不改移动逻辑。
+let pendingAction = null;
+function requestAction(kind){
+  const p = activePlayer;
+  if(!p || G.state !== 'play' || G.paused) return false;
+  // 关卡禁键规则对触屏射门/传球按钮同样生效（切人键永不进入这个分支）
+  if(G.levelMode && G.levelDisableAction && kind===G.levelDisableAction) return false;
+  const ok = kind === 'shoot' ? userShoot() : userPass();
+  if(!ok && G.state === 'play' && !G.paused){
+    pendingAction = { kind: kind, until: (G.time || 0) + 0.40 };
+  } else {
+    pendingAction = null;
+  }
+  return ok;
+}
+function runPendingAction(){
+  if(!pendingAction) return false;
+  if(G.state !== 'play' || G.paused || !activePlayer || !activePlayer.owns){
+    if((G.time || 0) > pendingAction.until) pendingAction = null;
+    return false;
+  }
+  const a = pendingAction;
+  pendingAction = null;
+  if(a.kind === 'shoot') return userShoot();
+  if(a.kind === 'pass') return userPass();
+  return false;
+}
+
 const MOVE_CODES = ['KeyW','KeyS','KeyA','KeyD','ShiftLeft','ShiftRight','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Numpad8','Numpad2','Numpad4','Numpad6'];
 function defaultAct(code){
   if(code==='Space'||code==='KeyJ') return 'shoot';
@@ -1477,16 +1599,31 @@ function actOf(code){
   if(window.__ACT_OF) return window.__ACT_OF(code);
   return defaultAct(code);
 }
+// 捕获阶段先把 Tab/空格拦下来：即使焦点还停在某个按钮上，
+// 也不会让浏览器先把焦点移走、或把空格当成按钮点击，游戏动作才不会被吞。
+window.addEventListener('keydown', e=>{
+  if(G.state==='play' && (e.code==='Tab' || e.code==='Space')) e.preventDefault();
+}, true);
 window.addEventListener('keydown', e=>{
   // 输入框/昵称/房号里打字时，不拦截任何按键，也不触发游戏动作
   const tg = e.target;
   if(tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return;
+  // 关卡规则：随机禁用一键（绝不包含 Tab 切换球员），禁用期间按键完全无效
+  if(G.levelMode && G.state==='play' && G.levelDisableCode && e.code===G.levelDisableCode){
+    e.preventDefault(); return;
+  }
   if(MOVE_CODES.indexOf(e.code)>=0 || e.code==='Tab') e.preventDefault();
   const act = actOf(e.code);
   if(act){
+    // 比赛中的空格/传球/切人不要再触发页面滚动或聚焦按钮的默认点击；
+    // 否则按完 Tab 后焦点落在按钮上，再按空格会先激活按钮，游戏动作就像延迟/丢了。
+    if(G.state==='play') e.preventDefault();
+    // 按住动作键时，浏览器会持续发 repeat keydown。切人/射门/传球只需要按下那一下，
+    // 否则长按 Tab 会连续切好几次，看起来像“切人延迟/切错人”。
+    if(e.repeat) return;
     if(KEYFOR[act]){ keys[KEYFOR[act]] = true; return; }   // 移动类：映射到游戏内部读的那几个键
-    if(act==='shoot' && G.state==='play' && !G.paused) userShoot();
-    else if(act==='pass' && G.state==='play' && !G.paused) userPass();
+    if(act==='shoot' && G.state==='play' && !G.paused) requestAction('shoot');
+    else if(act==='pass' && G.state==='play' && !G.paused) requestAction('pass');
     else if(act==='switch' && G.state==='play' && !G.paused) switchPlayer();
     else if(act==='camera') cycleCamera();
     else if(act==='pause') togglePause();
@@ -1537,8 +1674,8 @@ function userMove(dt){
     G.idleT = 0;
     moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
     if(!ball.owner && ball.speed<22 && !selfPassLock(p) &&
-       dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+1.6){
-      ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
+       dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R){
+      ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.08;
       ball.vel.x=0; ball.vel.y=0; ball.vel.z=0;
     }
   } else if((G.idleT = (G.idleT||0) + dt) > 1.0){
@@ -1562,7 +1699,7 @@ function autoPlayUser(p, dt, blend){
     moveAI(p, {x:gx, z:cutZ}, dt, true, sp);
     p.decideT = (p.decideT||0) - dt;
     if(p.decideT<=0){
-      p.decideT = 0.12 + Math.random()*0.15;   // 接球后快速响应，无"接球冷却"
+      p.decideT = 0.10 + Math.random()*0.12;   // 接球后更快处理，缩短接球到下一次出球的间隔
       const nearEnemy = enemyNear(p, 1.5);
       const frontBlock = enemyInFront(p, 2.4);
       if(distGoal < 22 && Math.abs(p.pos.z) < 20){
@@ -1588,7 +1725,7 @@ function autoPlayUser(p, dt, blend){
     const looseNear = !ball.owner && dBall<12 && ball.speed<20;
     if(myPassTarget || looseNear || (oppOwns && (p===nearestPlayer(myTeam) || dBall<16))){
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true, sp);
-      if(!ball.owner && ball.speed<22 && !selfPassLock(p) && dBall<PICKUP_R+1.3){
+      if(!ball.owner && ball.speed<22 && !selfPassLock(p) && dBall<PICKUP_R){
         ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
       }
     } else {
@@ -1623,23 +1760,25 @@ function shootToward(p, tx, tz, power, loft){
 }
 function userShoot(){
   const p = activePlayer;
-  if(!p || !p.owns || G.state!=='play') return;
+  if(!p || !p.owns || G.state!=='play') return false;
   const gx = oppGoalX(p.team);
   const targetZ = (Math.random()<0.5? -1:1) * (2.2 + Math.random()*1.6);
   shootToward(p, gx, targetZ, 28 + Math.random()*4, 1.5 + Math.random()*2);
+  return true;
 }
 function userPass(){
   const p = activePlayer;
-  if(!p || !p.owns || G.state!=='play') return;
+  if(!p || !p.owns || G.state!=='play') return false;
   const arr = G.teams[p.team];
   const t = bestPassTarget(p, arr);
   if(!t){
     // 没有向前传球目标时，靠近球门就直接打门，避免按传球键没反应
     const distGoal = Math.abs(oppGoalX(p.team) - p.pos.x);
-    if(distGoal < 26 && Math.abs(p.pos.z) < 20) userShoot();
-    return;
+    if(distGoal < 26 && Math.abs(p.pos.z) < 20) return userShoot();
+    return false;
   }
   passTo(p, t, 20);
+  return true;
 }
 function switchPlayer(){
   if(!G.teams[G.userTeam]) return;
@@ -1659,6 +1798,15 @@ function switchPlayer(){
     // bestPassTarget 会按“身体前方”筛人，结果一传球就变成向后传。
     np.facing = np.side===0 ? 0 : Math.PI;
     updateActive(); sfx('btn');
+    // 切人当帧立刻判定接球，别让新球员等到下次 runFrame 才接管脚下的球
+    tryActivePickupNow();
+    // 跟人/特写镜头：切人时直接把镜头中心贴到新球员，不要再用 0.06 的慢 lerp 滑过去，
+    // 否则会感觉“按了 Tab 后要等半秒镜头才跟上”。全景模式跟球，保持不跳。
+    if(typeof camMode !== 'undefined' && camMode > 0 && activePlayer){
+      camCur.x = activePlayer.pos.x; camCur.z = activePlayer.pos.z; camCur.y = 1.2;
+    }
+    // 立即重绘一次，光圈不等到下一次 rAF 才出现；只切人时多渲染一帧。
+    try{ renderer.render(scene, camera); }catch(_){}
   }
 }
 
@@ -1705,7 +1853,12 @@ function tryTackle(o, dt){
   if(ua && ua.team!==o.team && ua.role!=='GK' && inRange(ua)) cands.push(ua);
   for(const p of other){
     if(p===ua || p.role==='GK') continue;
-    if(inRange(p)){ cands.push(p); break; }
+    if(inRange(p)){
+      cands.push(p);
+      // 对手抢玩家时只取最近 1 人；我方防守时可以 2~3 人合抢，
+      // 否则一个人扑空后，后面的队友这帧就不再尝试了。
+      if(p.team!==G.userTeam || cands.length>=3) break;
+    }
   }
   for(const p of cands){
     const faceX=Math.cos(o.facing), faceZ=Math.sin(o.facing);
@@ -1714,7 +1867,9 @@ function tryTackle(o, dt){
     const dot=(faceX*tdx+faceZ*tdz)/tl;
     const frontal = dot > 0.15;
     const isUser = p.team===G.userTeam && p.idx===G.activeIdx;
-    const base = isUser? 0.9 : AI_TACKLE_CHANCE;   // 玩家正面抢断几乎必成；AI 抢断明显降低
+    const isOwnAI = p.team===G.userTeam;
+    // 我方 AI 防守球员抢断概率略高于对手，避免“对面一碰就丢、我们围着抢不下来”
+    const base = isUser ? 0.9 : (isOwnAI ? Math.max(AI_TACKLE_CHANCE, G.rankMode ? 0.62 : 0.55) : AI_TACKLE_CHANCE);
     const prob = frontal? base : base*0.5;
     if(Math.random() < prob){
       o.owns=false; ball.owner=p; p.owns=true;
@@ -1791,6 +1946,7 @@ function updateOpponentAI(team, dt){
   const s = team===0? 1 : -1;
   const ua = G.teams[G.userTeam][G.activeIdx];
   const markers = new Set();
+  const supportRuns = new Set();
   if(ua && ua.owns){
     // 玩家控球时，最近的 2 名防守者贴身盯防（增加对抗，但玩家仍可用速度/传球摆脱）
     const cands = [];
@@ -1799,7 +1955,14 @@ function updateOpponentAI(team, dt){
       cands.push(p);
     }
     cands.sort((a,b)=> dist2D(a.pos.x,a.pos.z,ua.pos.x,ua.pos.z) - dist2D(b.pos.x,b.pos.z,ua.pos.x,ua.pos.z));
-    cands.slice(0, G.difficulty==='hard'?2:1).forEach(p=> markers.add(p));   // 困难模式双人盯防
+    // 排位赛只派 1 人贴身；普通困难才双人包夹，避免排位里玩家一拿球就被两个人黏死。
+    cands.slice(0, G.rankMode ? 1 : (G.difficulty==='hard'?2:1)).forEach(p=> markers.add(p));
+  }
+  // 噩梦模式额外配合：只让 1 名前锋/中场前插接应，制造一个向前出球点；不堆人、不抢玩家操作感。
+  if(G.difficulty==='nightmare' && chaser && chaser.owns){
+    const supportCands = team.filter(q=>q!==chaser && (q.role==='ST' || q.role==='MF') && !markers.has(q) && !q.remoteCtl);
+    supportCands.sort((a,b)=> (a.role==='ST'?0:1) - (b.role==='ST'?0:1));
+    supportCands.slice(0,1).forEach(q=> supportRuns.add(q));
   }
   for(const p of team){
     // 联机客机操控的球员：只认客机输入，AI 完全不碰（否则画面会两边各跑一套）
@@ -1860,19 +2023,23 @@ function updateOpponentAI(team, dt){
           const frontBlock = enemyInFront(p, 2.4);  // 正前方有人挡路
           if(distGoal < AI_SHOOT_RANGE && (G.difficulty!=='easy' || G.oppPasses>=3) && Math.random() > (frontBlock? 0.6 : 0.2)){
             // 射门（简单模式需先传 3 次；困难模式随时可射，且更准更远）
-            const spread = G.difficulty==='hard'? 0.7+distGoal*0.12 : 1.6+distGoal*0.22;
+            const spread = G.rankMode ? (1.1 + distGoal*0.16) : (G.difficulty==='hard'? 0.7+distGoal*0.12 : 1.6+distGoal*0.22);
             const targetZ = (Math.random()<0.5?-1:1)*(1.2 + Math.random()*3.0) + (Math.random()-0.5)*spread;
             const loft = 1.2 + Math.random()*2.2;
             shootToward(p, gx, targetZ, 24+Math.random()*4, loft);
-          } else if(((G.difficulty==='easy' && G.oppPasses<3 && distGoal<15) || (nearEnemy || frontBlock)) && Math.random()<0.85){
+          } else if(((G.difficulty==='easy' && G.oppPasses<3 && distGoal<15) || (nearEnemy || frontBlock) || (G.difficulty==='nightmare' && Math.random()<0.18)) && Math.random()<0.85){
             // 传球：到门前但不足 3 传被迫传导，或遇贴身/挡路（找空位前锋，无则回传保持控球）
             G.oppPasses++;
             let t = bestPassTarget(p, team);
             if(!t){
+              // 没有向前出球点：优先找身后空位队友回传，而不是随机把球塞给任意人
+              t = bestOutletTarget(p, team);
+            }
+            if(!t){
               const mates = team.filter(q=>q!==p && q.role!=='GK');
               if(mates.length) t = mates[(Math.random()*mates.length)|0];
             }
-            if(t) passTo(p, t, t.role==='GK'? 14 : 19);
+            if(t) passTo(p, t, t.role==='GK'? 13 : (t.pos.x-p.pos.x)*s < 0 ? 16 : 19);
           } else if(distGoal > 28 && Math.random()<0.18){
             // 长传转移（增加进攻变化）
             G.oppPasses++;
@@ -1893,7 +2060,7 @@ function updateOpponentAI(team, dt){
         const lead = slow? 0 : 0.3;
         const pred = { x: ball.pos.x + ball.vel.x*lead, z: ball.pos.z + ball.vel.z*lead };
         moveAI(p, pred, dt, true, AI_SPRINT);
-        if(ball.speed<15 && dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<AI_PICKUP_R+1.2){
+        if(ball.speed<22 && dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<AI_PICKUP_R+2.0){
           ball.owner=p; p.owns=true; ball.passTarget=null;
         }
       } else if(G.giveGo && p===G.giveGo && G.giveGoT>0){
@@ -1904,6 +2071,12 @@ function updateOpponentAI(team, dt){
         moveAI(p, tt, dt, true, AI_SPRINT);
       } else if(markers.has(p)){
         moveAI(p, {x:ua.pos.x, z:ua.pos.z}, dt, true, AI_SPRINT);   // 贴身盯防玩家（速度略慢，玩家可摆脱）
+      } else if(supportRuns.has(p)){
+        // 噩梦配合：向持球人前方 8~12m 的肋部空当插上，形成传球线路
+        const dir = p.side===0? 1 : -1;
+        const tx = clamp(ball.pos.x + dir*(8 + Math.random()*4), -HALF_W+3, HALF_W-3);
+        const tz = clamp(p.pos.z + (ball.pos.z-p.pos.z)*0.25 + (p.homeZ>0? -4:4), -20, 20);
+        moveAI(p, {x:tx, z:tz}, dt, true, AI_SPRINT);
       } else {
         const t = formationTarget(p);
         moveAI(p, t, dt, false);
@@ -1947,6 +2120,30 @@ function bestPassTarget(p, team){
   // 绝不把球传向身后。
   return best || bestF;
 }
+// 压力下的安全回传点：只给 AI 在“没有向前出球点”时使用，优先找身后空位队友。
+// 玩家主动传球仍然走 bestPassTarget，不会随便把球往身后传。
+function bestOutletTarget(p, team){
+  const s = p.side===0? 1 : -1;
+  const opp = G.teams[1-p.team];
+  let best=null, bsc=1e9;
+  for(const t of team){
+    if(t===p || t.role==='GK') continue;
+    const dx=t.pos.x-p.pos.x, dz=t.pos.z-p.pos.z;
+    const d=Math.hypot(dx,dz);
+    if(d<2.5 || d>32) continue;
+    if(dx*s > 1.0) continue;                    // 只找身后的接应点
+    let pressure=0;
+    for(const e of opp){
+      if(e.role==='GK') continue;
+      const ed=dist2D(e.pos.x,e.pos.z,t.pos.x,t.pos.z);
+      if(ed<3.0) pressure += 1.3 - ed*0.35;
+    }
+    if(pressure>1.2) continue;                  // 回传点也被贴住就不传
+    const sc = d + pressure*10 - (t.role==='GK'?3:0) - (t.role==='DF'?1:0) + (Math.random()-0.5)*3;
+    if(sc<bsc){ bsc=sc; best=t; }
+  }
+  return best;
+}
 // 领球传球：瞄准目标前方一点，让队友跑动接球（修传球接不住/传空的问题）
 function passTo(p, t, power){
   if(!t) return;
@@ -1959,6 +2156,7 @@ function passTo(p, t, power){
   // 贴地快传（低弧度），并指定接球人自动迎球，传球不再传飞/接不住
   shootToward(p, t.pos.x+fx*lead, t.pos.z+fz*lead, Math.max(15, Math.min(24, 19+d*0.14)), 0.45);
   ball.passTarget = t;
+  if(G.stats && G.stats.passes) G.stats.passes[p.team] = (G.stats.passes[p.team]||0) + 1;
   sfx('pass');
 }
 // 队友进攻跑位：整体压向对方球门，前锋插禁区、中场压弧顶、后卫压中线
@@ -2001,7 +2199,7 @@ function updateTeammateAI(team, dt){
   let sweeper=null, minH=1e9;
   for(const q of team){ if(q.role==='DF' && q.homeX<minH){ minH=q.homeX; sweeper=q; } }
   if(oppOwns){
-    // 对手控球时，最近的 2 名球员上前逼抢
+    // 对手控球时，最近的 4 名球员上前逼抢
     const cands = [];
     for(const p of team){
       if(p.idx===G.activeIdx || p.role==='GK' || p===sweeper) continue;
@@ -2009,6 +2207,38 @@ function updateTeammateAI(team, dt){
     }
     cands.sort((a,b)=> dist2D(a.pos.x,a.pos.z,ball.pos.x,ball.pos.z) - dist2D(b.pos.x,b.pos.z,ball.pos.x,ball.pos.z));
     cands.slice(0,4).forEach(p=> chasers.add(p));   // 队友 4 人上前逼抢
+  }
+  // 防守盯人：对手进入本方 34 米区域时，派出 2~3 名后卫/中场做“球门侧”盯防。
+  // 之前队友只会朝球跑，对手前锋在禁区前无人看管；这是“我方防守太烂”的主要来源。
+  const markTargets = new Map();
+  if(oppOwns){
+    const sideSign = team[0] && team[0].side === 1 ? -1 : 1;
+    const ownGoalX = -sideSign * HALF_W;
+    const oppTeam = G.teams[1-G.userTeam] || [];
+    const threats = [];
+    for(const e of oppTeam){
+      if(e.role==='GK') continue;
+      const dGoal = Math.abs(ownGoalX - e.pos.x);
+      if(dGoal < 34) threats.push({ p:e, dGoal:dGoal });
+    }
+    threats.sort((a,b)=> a.dGoal - b.dGoal);
+    const marks = team.filter(p=> p.role!=='GK' && p!==sweeper && p.idx!==G.activeIdx && !chasers.has(p));
+    const used = new Set();
+    const maxMarks = G.rankMode ? 3 : 3;
+    for(let i=0; i<threats.length && used.size<maxMarks; i++){
+      const e = threats[i].p;
+      let pick=null, pd=1e9;
+      for(const m of marks){
+        if(used.has(m)) continue;
+        const md = dist2D(m.pos.x,m.pos.z,e.pos.x,e.pos.z);
+        if(md < pd){ pd=md; pick=m; }
+      }
+      if(pick){
+        used.add(pick);
+        // 站在对手和本方球门之间，而不是跟着对手身后跑
+        markTargets.set(pick, { x: clamp(e.pos.x - sideSign*1.9, -HALF_W+2, HALF_W-2), z: clamp(e.pos.z,-20,20) });
+      }
+    }
   }
   for(const p of team){
     if(p.idx===G.activeIdx) continue;
@@ -2056,7 +2286,7 @@ function updateTeammateAI(team, dt){
       const pred = { x: ball.pos.x + ball.vel.x*lead, z: ball.pos.z + ball.vel.z*lead };
       moveAI(p, pred, dt, true);
       if(ball.speed<22 && dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+2.0){
-        ball.owner=p; p.owns=true; ball.passTarget=null; p.decideT=0.1;
+        ball.owner=p; p.owns=true; ball.passTarget=null; p.decideT=0.08;
       }
       continue;
     }
@@ -2065,7 +2295,7 @@ function updateTeammateAI(team, dt){
       const dS = dist2D(p.pos.x,p.pos.z,ball.pos.x,ball.pos.z);
       if(!ball.owner && dS<14 && ball.speed<20){
         moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
-        if(dS<PICKUP_R+0.6 && ball.speed<20){ ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1; }
+        if(dS<PICKUP_R+0.6 && ball.speed<20){ ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.08; }
       } else {
         moveAI(p, sweeperTarget(p), dt, false);
       }
@@ -2091,6 +2321,10 @@ function updateTeammateAI(team, dt){
           passTo(p, t, 20);
         }
       }
+    } else if(oppOwns && markTargets.has(p) && !p.owns){
+      // 盯人：站在对手和本方球门之间，优先卡传球线/射门线
+      const mt = markTargets.get(p);
+      moveAI(p, mt, dt, true, SPRINT_SPD);
     } else if(oppOwns && chasers.has(p)){
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
     } else if(G.giveGo && p===G.giveGo && G.giveGoT>0){
@@ -2113,7 +2347,7 @@ function updateTeammateAI(team, dt){
       if(dSup < dUser - 1.5 || (dSup<10 && ball.speed<18)){
         moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
         if(!ball.owner && ball.speed<22 && dSup<PICKUP_R+1.0){
-          ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.1;
+          ball.owner=p; p.owns=true; ball.passTarget=null; G.oppPasses=0; p.decideT=0.08;
         }
       } else {
         const t = oppOwns? formationTarget(p) : teammateAttackTarget(p);
@@ -2124,6 +2358,40 @@ function updateTeammateAI(team, dt){
       const t = oppOwns? formationTarget(p) : teammateAttackTarget(p);
       moveAI(p, t, dt, false);
     }
+  }
+}
+
+// 门将短持球后快速发球：只有真正在怀里的慢球才进入这个流程，
+// 远距离扑救只挡出/拍出，不会把 2 米外的球“吸”到手上。
+function updateGKHold(dt){
+  if(!ball.owner) return;
+  const gk = ball.owner;
+  if(!gk || gk.role !== 'GK' || !gk.owns) return;
+  if(gk === activePlayer) return;
+  if(gk.holdT > 0){
+    gk.holdT -= dt;
+    const s = gk.team===0? 1 : -1;
+    ball.pos.x = gk.pos.x + s*0.9;
+    ball.pos.z = gk.pos.z + 0.18;
+    ball.pos.y = 1.2;
+    ball.vel.x = 0; ball.vel.y = 0; ball.vel.z = 0;
+    if(gk.holdT > 0) return;
+  }
+  const team = G.teams[gk.team] || [];
+  let target = bestPassTarget(gk, team);
+  if(!target){
+    const s = gk.team===0? 1 : -1;
+    const mates = team.filter(q=>q!==gk && q.role!=='GK').sort((a,b)=>(b.pos.x-a.pos.x)*s);
+    target = mates[0] || null;
+  }
+  gk.diveT = 0.4;
+  gk.holdT = 0;
+  if(target){
+    passTo(gk, target, 17);
+    sayComment('🧤 门将快速手抛球！');
+  } else {
+    const s = gk.team===0? 1 : -1;
+    shootToward(gk, s*(HALF_W-12), (Math.random()-0.5)*12, 24, 4.5);
   }
 }
 
@@ -2168,16 +2436,16 @@ function updateBall(dt){
   }
   if(b.pos.z > HALF_H){ if(b.wasShot){ sayComment('😩 射门打飞了！'); b.wasShot=false; } startThrowIn(HALF_H, b.pos.x); return; }
   if(b.pos.z < -HALF_H){ if(b.wasShot){ sayComment('😩 射门打飞了！'); b.wasShot=false; } startThrowIn(-HALF_H, b.pos.x); return; }
-  // 门将站位：门将不能一直站在 6 米外（原 homeX=-46，球门在 -52.5，扑救判定距离永远够不到）。
-  // 球进入最后 10 米时把门将拉回门线附近，并跟着球的 z 移动。
-  if(!b.owner && Math.abs(b.pos.x) > HALF_W - 10){
+  // 门将站位：球进最后 9 米时，门将慢慢回到门线附近并跟着球横向移动。
+  // 这是“聪明但不瞬移”的版本，移动速度比之前的 10/8 慢。
+  if(!b.owner && Math.abs(b.pos.x) > HALF_W - 9){
     const defTeam = b.pos.x > 0 ? 1 : 0;
     const gk0 = G.teams[defTeam][0];
     const gx0 = b.pos.x > 0 ? HALF_W : -HALF_W;
     if(gk0){
       const lineX = gx0 - Math.sign(gx0) * 1.15;
-      gk0.pos.x += (lineX - gk0.pos.x) * Math.min(1, 10*dt);
-      gk0.pos.z += (clamp(b.pos.z, -4.2, 4.2) - gk0.pos.z) * Math.min(1, 8*dt);
+      gk0.pos.x += (lineX - gk0.pos.x) * Math.min(1, 6*dt);
+      gk0.pos.z += (clamp(b.pos.z, -3.8, 3.8) - gk0.pos.z) * Math.min(1, 6*dt);
       gk0.facing = b.pos.x > gk0.pos.x ? 0 : Math.PI;
     }
   }
@@ -2191,20 +2459,23 @@ function updateBall(dt){
       const goalX = towardPlus? HALF_W : -HALF_W;
       const dz = ball.pos.z - gk.pos.z;
       const isMyGK = gk.team === G.userTeam;
-      const step = Math.min((isMyGK?22:15)*dt, Math.abs(dz));
+      const step = Math.min((isMyGK? 20 : 12)*dt, Math.abs(dz));
       gk.pos.z += Math.sign(dz)*step;
       gk.facing = ball.pos.x>gk.pos.x? 0 : Math.PI;
       gk.velx=0; gk.velz = Math.sign(dz)*step/Math.max(dt,0.001);
       clampPlayer(gk);
       const d = dist2D(gk.pos.x, gk.pos.z, ball.pos.x, ball.pos.z);
-      if(d < (isMyGK?2.15:1.65) && b.speed < 24){
-        const base = isMyGK ? 0.88 : 0.30;   // 我方门将明显更可靠；对方门将不再像一堵墙
-        const prob = d < (isMyGK?1.2:1.0)? base : base*0.55;
+      const reach = isMyGK? 2.10 : 1.50;
+      if(d < reach && b.speed < 24){
+        const easy = G.difficulty === 'easy';
+        const base = isMyGK ? 0.88 : (easy? 0.17 : (G.difficulty==='nightmare'? 0.40 : 0.29));
+        const close = isMyGK? 1.20 : 0.95;
+        const prob = d < close? base : base*0.55;
         if(Math.random() < prob){
           if(b.speed > 13){
-            // 快球：门将大脚解围（朝前场、小偏移，尽量不出界）或扑向两侧
+            // 快球：门将大脚解围或扑向两侧
             b.owner=null; b.passTarget=null;
-            gk.diveT = 0.9;
+            gk.diveT = 0.75;
             if(Math.random()<0.45){
               const fx = (gk.team===0? 1 : -1) * (14 + Math.random()*5);
               b.vel.x = fx; b.vel.z = (Math.random()-0.5)*4; b.vel.y = 5.5+Math.random()*2;
@@ -2213,14 +2484,23 @@ function updateBall(dt){
               const outX = (gk.team===0? 1 : -1) * (9 + Math.random()*3);
               const outZ = (b.pos.z - gk.pos.z)>=0? 1 : -1;
               b.vel.x = outX; b.vel.z = outZ*(3+Math.random()*2.5); b.vel.y = 3+Math.random()*1.5;
-              sayComment('🧤 门将神扑，解围出边路！');
+              sayComment('🧤 门将扑出边路！');
             }
-          } else {
-            // 慢球：直接抱住
+          } else if(d <= close){
+            // 只有真正到怀里才短持球，随后快速手抛，不把远处的球吸到身上
             b.vel.x=0; b.vel.y=0; b.vel.z=0;
             b.owner=gk; gk.owns=true;
-            gk.diveT = 0.9;
-            sayComment('🧤 门将神扑！');
+            gk.holdT = 0.38 + Math.random()*0.30;
+            gk.diveT = 0.65;
+            sayComment('🧤 门将没收，准备快发！');
+          } else {
+            // 慢球但还在扑救范围边缘：拍出去，不抱
+            const outX = (gk.team===0? 1 : -1) * (8 + Math.random()*4);
+            const outZ = (b.pos.z - gk.pos.z)>=0? 1 : -1;
+            b.owner=null; b.passTarget=null;
+            b.vel.x = outX; b.vel.z = outZ*(2.5+Math.random()*2); b.vel.y = 2.8+Math.random()*1.4;
+            gk.diveT = 0.65;
+            sayComment('🧤 门将将球拍出！');
           }
           sfx('kick');
         } else {
@@ -2237,14 +2517,21 @@ function updateBall(dt){
         const d=dist2D(p.pos.x,p.pos.z,b.pos.x,b.pos.z);
         if(d<bd){
           const isTarget = (p===b.passTarget);
-          const spdMax = isTarget? 22 : 6;      // 接球人可在球较快时停球（更容易接住）
-          const rr = isTarget? PICKUP_R+2.0 : PICKUP_R;
+          const isUserCtl = (p.team===G.userTeam && p.idx===G.activeIdx);
+          // 自己控制的球员只按脚下 1.55m 接球，不再用传球目标 +2.0m 的宽范围；
+          // 否则切人/接球时会出现“隔空把球吸过来再出脚”。
+          const spdMax = isUserCtl ? (isTarget? 14 : 6) : (isTarget? 22 : 6);
+          const rr = isUserCtl ? PICKUP_R : (isTarget? PICKUP_R+2.0 : PICKUP_R);
           if(b.speed<spdMax && d<rr){ bd=d; best=p; }
         }
       }
     }
     if(best){
       b.owner=best; best.owns=true; b.passTarget=null;
+      if(best.role==='GK'){
+        best.holdT = 0.38 + Math.random()*0.30;
+        best.diveT = 0.65;
+      }
       b.vel.x=0; b.vel.y=0; b.vel.z=0;          // 接球瞬间停球，无滑行
       best.decideT = 0.1;                        // 托管立即处理球，消除接球冷却
       if(best.team===G.userTeam) G.oppPasses=0;
@@ -2317,6 +2604,7 @@ function onGoal(scorer){
   ball.owner=null;
   ball.passTarget=null; G.oppPasses=0;
   G.replayFrames = replayBuf.slice();              // 保存回放帧
+  if(window.__levelOnGoal) window.__levelOnGoal(scorer);
 }
 function showBanner(big, sub){
   document.getElementById('banner-big').textContent = big;
@@ -2420,6 +2708,7 @@ function onHalfTime(){
   sfx('whistle');
 }
 function endMatch(){
+  if(G.levelMode && window.__levelOnFullTime && window.__levelOnFullTime()) return;
   G.state='end';
   sfx('whistle');
   const a=G.score[0], b=G.score[1];
@@ -2467,16 +2756,28 @@ function selectTeam(t){
   sfx('btn');
 }
 function startGame(){
+  // 从菜单按钮/输入框开局时把焦点还给页面，避免键盘事件还落在按钮上：
+  // 焦点在按钮上时空格会先触发按钮默认点击，Tab 也可能去切焦点。
+  try{ const ae=document.activeElement; if(ae && ae.blur && (ae.tagName==='BUTTON' || ae.tagName==='INPUT' || ae.tagName==='TEXTAREA')) ae.blur(); }catch(_){}
+  pendingAction = null;
   ensureAudio();
+  G.rankMode = false; G.rankSubmitted = false;
+  const wantSize = G.matchSize === 3 ? 3 : 11;
+  const kitKey = (G.kitMain||'') + '|' + (G.kitGK||'');
+  if(!G.teams[0] || G.teams[0].length !== wantSize || G._builtKit !== kitKey){
+    initTeams();
+    G._builtSize = wantSize; G._builtKit = kitKey;
+  }
   G.score=[0,0]; G.clock=45*60; G.half=0;
   G.stats={ possT:[0,0], shots:[0,0], passes:[0,0] };
   G.goalLog=[];
   G.screenMsg = null; G.lastScreenKey = null;
   G.lastKickoff = G.userTeam;
-  G.activeIdx = 9;
+  G.activeIdx = wantSize===3 ? 2 : 9;
   updateActive();
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('end').classList.add('hidden');
+  const _rb = document.querySelector('#end .btn-primary'); if(_rb) _rb.style.display='';
   updateScoreboard();
   kickoff();
   sfx('btn');
@@ -2487,8 +2788,16 @@ function togglePause(){
   document.getElementById('pause').classList.toggle('hidden', !G.paused);
 }
 function restartMatch(){
+  if(G.levelMode && window.__levelRestart){ window.__levelRestart(); return; }
   startGame();
 }
+// 主菜单“开始比赛”走标准 11v11；3v3/关卡会自己设置 matchSize 后调用 startGame
+window.startStandardGame = function(){
+  G.matchSize = 11; G.matchMode = '11v11'; G.levelMode = false;
+  G.levelDisableCode = null; G.levelDisableAction = null;
+  const lp=document.getElementById('level-panel'); if(lp) lp.classList.add('hidden');
+  startGame();
+};
 function updateScoreboard(){
   document.getElementById('scoreA').textContent = G.score[0];
   document.getElementById('scoreB').textContent = G.score[1];
@@ -2507,9 +2816,22 @@ function updateStatsPanel(){
 }
 function skipReplay(){ if(G.state==='replay') G.stateT = 0.001; }
 function applyDifficulty(d){
-  if(d==='hard'){
-    AI_SPRINT = 11.8; AI_TACKLE_CHANCE = 0.45; AI_PICKUP_R = 1.45;
-    USER_SPRINT_BOOST = 2.2; AI_SHOOT_RANGE = 18;
+  var rank = !!G.rankMode;
+  if(d==='nightmare'){
+    // 噩梦：速度/抢断/射程全面拉满，配合跑位在 updateOpponentAI 里单独加强
+    AI_SPRINT = rank ? 11.5 : 12.2;
+    AI_TACKLE_CHANCE = rank ? 0.40 : 0.52;
+    AI_PICKUP_R = rank ? 1.42 : 1.55;
+    USER_SPRINT_BOOST = 2.25;
+    AI_SHOOT_RANGE = rank ? 17 : 19;
+  } else if(d==='hard'){
+    // 排位赛保留“困难”的对抗，但把对手的双人包夹/抢断/射门精度略降一档，
+    // 避免比分差距被 AI 的数值碾压；普通困难模式仍是原来的强度。
+    AI_SPRINT = rank ? 11.3 : 11.8;
+    AI_TACKLE_CHANCE = rank ? 0.38 : 0.45;
+    AI_PICKUP_R = rank ? 1.40 : 1.45;
+    USER_SPRINT_BOOST = 2.2;
+    AI_SHOOT_RANGE = rank ? 17 : 18;
   } else {
     AI_SPRINT = 10.4; AI_TACKLE_CHANCE = 0.16; AI_PICKUP_R = 1.3;
     USER_SPRINT_BOOST = 1.8; AI_SHOOT_RANGE = 15;
@@ -2517,7 +2839,11 @@ function applyDifficulty(d){
   G.difficulty = d;
   document.getElementById('diff-easy').classList.toggle('selD', d==='easy');
   document.getElementById('diff-hard').classList.toggle('selD', d==='hard');
-  sayComment(d==='hard'? '🔥 困难模式：对手不设进球限制，全力进攻！' : '😊 简单模式：对手需先完成 3 次传球才能射门');
+  const dn = document.getElementById('diff-nightmare');
+  if(dn) dn.classList.toggle('selD', d==='nightmare');
+  sayComment(d==='nightmare'? '😈 噩梦模式：对手全力配合，传球、跑位、逼抢全部拉满！' :
+             d==='hard'? '🔥 困难模式：对手不设进球限制，全力进攻！' :
+             '😊 简单模式：对手需先完成 3 次传球才能射门，门将扑救也会降低');
   sfx('btn');
 }
 function setDifficulty(mode){ applyDifficulty(mode); }
@@ -2529,7 +2855,7 @@ function toggleSquad(){
   for(let t=0;t<2;t++){
     const tc = TEAM_COLORS[t];
     html += '<h2 style="font-size:18px;color:' + (t===0?'#7fd4ff':'#ff9d9d') + '">' + tc.emoji + ' ' + tc.name + '</h2><table class="' + (t===0?'sqA':'sqB') + '">';
-    for(let i=0;i<11;i++){
+    for(let i=0;i<G.teams[t].length;i++){
       const p = G.teams[t][i];
       if(!p) continue;
       const face = FACE_FILES[faceIndexFor(i,t)].split('/').pop();
@@ -2695,7 +3021,7 @@ function updateCamera(dt){
 // ---------------- 主循环 ----------------
 let last = performance.now();
 let __idleT = 0;
-var SET = { fps:60, pr:1.0, shadow:1 };
+var SET = { fps:60, pr:1.0, shadow:1, replay:1 };
 try{ var _s = JSON.parse(localStorage.getItem('zhuj_perf_v1')||'null'); if(_s) Object.assign(SET,_s); }catch(_){}
 function applyPerf(){
   try{ localStorage.setItem('zhuj_perf_v1', JSON.stringify(SET)); }catch(_){}
@@ -2782,9 +3108,9 @@ function runFrame(dt){
   else if(G.state==='throwin' && G.stateT<=0){ finishThrowIn(); }
   else if(G.state==='goal' && G.stateT<=0){
     G.lastKickoff = G.score[0]<G.score[1]? 0 : (G.score[1]<G.score[0]?1:G.userTeam);
-    // 进球后进入慢动作回放
-    if(G.replayFrames && G.replayFrames.length>8){
-      G.state='replay'; G.stateT=5.0; G.replayIdx=0;
+    // 进球后进入慢动作回放；设置里关闭回放就直接开球
+    if(G.replayFrames && G.replayFrames.length>8 && (typeof SET==='undefined' || SET.replay !== 0)){
+      G.state='replay'; G.stateT=2.2; G.replayIdx=0;
       for(const arr of G.teams) if(arr) for(const p of arr) p.celebrateT=0;
       hideBanner();
     } else {
@@ -2794,9 +3120,9 @@ function runFrame(dt){
   else if(G.state==='replay' && G.stateT<=0){ kickoff(); }
   else if(G.state==='half' && G.stateT<=0){ G.lastKickoff=G.userTeam; kickoff(); }
 
-  // 慢动作回放：按时间进度连续插值，不再每帧 +0.6 硬跳、播完循环
+  // 进球回放：按时间进度连续插值，2.2 秒播完，比原先 5 秒更快
   if(G.state==='replay' && G.replayFrames && G.replayFrames.length){
-    const total = 5.0;
+    const total = 2.2;
     const prog = Math.max(0, Math.min(1, 1 - G.stateT / total));
     const len = G.replayFrames.length;
     const start = Math.max(0, len - 76);          // 只播最后约 5 秒，播到进球那一刻
@@ -2810,9 +3136,9 @@ function runFrame(dt){
     if(G.kickoffT>1.2) G.kickoffPlan = null;
     if(G.giveGoT>0){ G.giveGoT-=dt; if(G.giveGoT<=0) G.giveGo=null; }
     updateStatsPanel();
-    // 记录回放帧（供进球后慢动作回放；每 2 帧记录一次，对象分配减半，消除 GC 周期尖峰）
+    // 记录回放帧（供进球后回放；设置关闭回放时不记录，省内存）
     G.recCtr = ((G.recCtr||0)+1) % 2;
-    if(G.recCtr===0){
+    if(G.recCtr===0 && (typeof SET==='undefined' || SET.replay !== 0)){
       replayBuf.push({
         players: G.teams.flatMap((arr,t)=>arr.map(p=>({t, i:p.idx, x:p.pos.x, z:p.pos.z, f:p.facing}))),
         ball: {x:ball.pos.x, y:ball.pos.y, z:ball.pos.z}
@@ -2826,17 +3152,20 @@ function runFrame(dt){
     if(activePlayer) userMove(dt);
     if(!ball.owner && ball.speed<22 && activePlayer &&
        !selfPassLock(activePlayer) &&
-       dist2D(activePlayer.pos.x,activePlayer.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R+2.0){
+       dist2D(activePlayer.pos.x,activePlayer.pos.z,ball.pos.x,ball.pos.z)<PICKUP_R){
       ball.owner=activePlayer; activePlayer.owns=true;
-      ball.passTarget=null; G.oppPasses=0; activePlayer.decideT=0.1;
+      ball.passTarget=null; G.oppPasses=0; activePlayer.decideT=0.08;
       ball.vel.x=0; ball.vel.y=0; ball.vel.z=0;
     }
+    // 刚才因为球还没到脚边而被缓冲的射门/传球，在拿球这一帧补出脚
+    runPendingAction();
     // 玩家队友支援 AI
     updateTeammateAI(G.teams[G.userTeam], dt);
     // 球员身体碰撞（卡位 / 挡人）
     resolveCollisions();
     // 球物理 / 计时
     updateBall(dt);
+    updateGKHold(dt);
     updateClock(dt);
   }
 
@@ -2994,8 +3323,8 @@ window.addEventListener('load', ()=>{
       setTimeout(function(){ el.classList.remove('pressed'); }, 120);
     });
   }
-  bindBtn('t-shoot',  function(){ if(G && G.state==='play' && !G.paused) userShoot(); });
-  bindBtn('t-pass',   function(){ if(G && G.state==='play' && !G.paused) userPass(); });
+  bindBtn('t-shoot',  function(){ if(G && G.state==='play' && !G.paused) requestAction('shoot'); });
+  bindBtn('t-pass',   function(){ if(G && G.state==='play' && !G.paused) requestAction('pass'); });
   bindBtn('t-switch', function(){ if(G && G.state==='play' && !G.paused) switchPlayer(); });
   bindBtn('t-cam',    function(){ cycleCamera(); });
   bindBtn('t-pause',  function(){ togglePause(); });
@@ -3077,7 +3406,7 @@ window.addEventListener('load', ()=>{
   }, {passive:false});
 })();
 </script>
-<script src="js/online.js"></script>
+<script src="js/online.js?v=20261127f"></script>
 <script>
 // ---------------- 自定义键位：只在输入层映射，不改游戏逻辑 ----------------
 (function(){
@@ -3096,6 +3425,7 @@ window.addEventListener('load', ()=>{
       .replace('ControlLeft','Ctrl').replace('ControlRight','Ctrl').replace('Enter','回车').replace('Escape','Esc');
   }
   // 唯一的按键映射入口：默认输入处理器通过它取动作，避免“两套处理各管一半”导致改键无效
+  window.__KEY_BIND = B;
   window.__ACT_OF = function(code){
     for(var k in B){ if(B[k] && B[k]===code) return k; }        // 用户实际绑定优先
     // 没改过的动作，保留原来的备用键
@@ -3140,6 +3470,7 @@ window.addEventListener('load', ()=>{
   function renderAllOpts(){
     renderOpt('opt-btnsize','btnsize'); renderOpt('opt-joysize','joysize'); renderOpt('opt-hand','hand');
     renderOpt('opt-fps','fps'); renderOpt('opt-pr','pr'); renderOpt('opt-shadow','shadow');
+    renderOpt('opt-replay','replay');
   }
   // ---- 触屏按钮拖动定位 ----
   var dragEdit = false;
@@ -3472,10 +3803,16 @@ window.addEventListener('load', ()=>{
     var nick = nickname();
     window.closeRank();
     selectTeam(0);
-    setDifficulty('hard');          // 统一难度，保证榜单可比
+    // 排位是独立 11v11 比赛，不能继承关卡模式/禁用键规则
+    G.levelMode = false; G.levelConfig = null; G.levelDisableCode = null; G.levelDisableAction = null;
+    G.matchSize = 11; G.matchMode = '11v11';
+    // 注意：window.startGame 在下面被包了一层“普通开局自动退出排位”，
+    // 所以必须等它跑完再把 rankMode 置回 true，否则排位结算永远不会触发。
     window.startGame();
-    G.rankMode = true; G.rankSubmitted = false;
-    if(typeof sayComment === 'function') sayComment('🏅 排位赛开始：小鱼鱼 vs 小虾虾（困难）');
+    G.rankMode = true;
+    G.rankSubmitted = false;
+    setDifficulty('hard');          // 此时 rank 已为 true，按排位配平对手
+    if(typeof sayComment === 'function') sayComment('🏅 排位赛开始：小鱼鱼 vs 小虾虾（排位配平）');
   };
 
   setInterval(function(){
@@ -3506,6 +3843,309 @@ window.addEventListener('load', ()=>{
       msg('联机模块未加载，成绩已存本机 · '+pts+' 分', true);
     }
   }, 400);
+})();
+</script>
+<script>
+/* ============ 3v3 / 100关 / 皮肤系统 ============ */
+(function(){
+  var LS = 'zhuj_level_progress_v1';
+  function loadProg(){
+    try{
+      var o = JSON.parse(localStorage.getItem(LS) || 'null');
+      if(o && Array.isArray(o.cleared)) return { cleared:o.cleared, skin:o.skin || 'default', skin50:!!o.skin50, gold:!!o.gold };
+    }catch(_){}
+    return { cleared:[], skin:'default', skin50:false, gold:false };
+  }
+  var prog = loadProg();
+  function saveProg(){ try{ localStorage.setItem(LS, JSON.stringify(prog)); }catch(_){} }
+  function isCleared(id){ return prog.cleared.indexOf(id) >= 0; }
+  function maxCleared(){ var n=0; while(isCleared(n+1)) n++; return n; }
+  function isUnlocked(id){ return id <= maxCleared()+1 || isCleared(id); }
+  function allCleared(){ return maxCleared() >= 100; }
+
+  var BIND = window.__KEY_BIND || { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', sprint:'ShiftLeft', shoot:'Space', pass:'KeyK', switch:'Tab', camera:'KeyC', pause:'KeyP' };
+  function keyLabel(code){
+    if(!code) return '—';
+    return code.replace(/^Key/,'').replace(/^Digit/,'').replace('Space','空格').replace('ShiftLeft','左Shift').replace('ShiftRight','右Shift')
+      .replace('ArrowUp','↑').replace('ArrowDown','↓').replace('ArrowLeft','←').replace('ArrowRight','→');
+  }
+
+  // 关卡配置：1~3 教学；4~20 标准时间内 5→30 球；21~40 随机禁键+获胜；
+  // 41~100 不考进球数，改为零封/逆转/噩梦等渐进目标。
+  function cfgFor(id){
+    if(id === 1) return { id:1, name:'教学 1 · 第一脚射门', desc:'在标准时间内进 1 球', target:1, diff:'easy', tutorial:true };
+    if(id === 2) return { id:2, name:'教学 2 · 传球配合', desc:'完成 3 脚传球，并进 1 球', target:1, passes:3, diff:'easy', tutorial:true };
+    if(id === 3) return { id:3, name:'教学 3 · 零封取胜', desc:'进 1 球且全场不丢球', target:1, clean:true, diff:'easy', tutorial:true };
+    if(id <= 20){
+      var target = 5 + Math.round((id-4) * 25 / 16);
+      return { id:id, name:'第 '+id+' 关 · 进球挑战', desc:'标准时间内进 '+target+' 球（进够立即通关）', target:target, diff:'easy' };
+    }
+    if(id <= 40) return { id:id, name:'第 '+id+' 关 · 禁键挑战', desc:'随机禁用 1 个按键（不会禁 Tab 切人），并赢下比赛', disable:true, diff:'hard' };
+    if(id <= 50) return { id:id, name:'第 '+id+' 关 · 强敌取胜', desc:'困难难度下赢下比赛', diff:'hard', milestone:id===50 };
+    if(id <= 60) return { id:id, name:'第 '+id+' 关 · 零封取胜', desc:'困难难度下赢球且不丢球', clean:true, diff:'hard' };
+    if(id <= 70) return { id:id, name:'第 '+id+' 关 · 逆转取胜', desc:'先落后再反超，最终赢下比赛', comeback:true, diff:'hard' };
+    if(id <= 80) return { id:id, name:'第 '+id+' 关 · 噩梦取胜', desc:'噩梦难度下赢下比赛', diff:'nightmare' };
+    if(id <= 90) return { id:id, name:'第 '+id+' 关 · 噩梦零封', desc:'噩梦难度下赢球且不丢球', clean:true, diff:'nightmare' };
+    if(id <= 99) return { id:id, name:'第 '+id+' 关 · 噩梦逆转', desc:'噩梦难度下先落后再反超取胜', comeback:true, diff:'nightmare' };
+    return { id:100, name:'第 100 关 · 最终试炼', desc:'噩梦难度 + 随机禁键，零封赢球，解锁冠军金皮肤', clean:true, disable:true, diff:'nightmare', final:true };
+  }
+
+  var TAB = 'fixed';
+  function el(id){ return document.getElementById(id); }
+
+  function infoHTML(){
+    var done = prog.cleared.length;
+    var next = Math.min(100, maxCleared()+1);
+    if(TAB === 'random'){
+      return '<div style="text-align:center;line-height:1.8;color:#cfe8ff">🎲 随机挑战：从 21~100 关随机抽一个规则，不记录主线进度，适合练手。<br>'+
+        '<button class="diff-btn" style="margin-top:10px;border-color:#ffe24a" onclick="startRandomLevel()">🎲 开始随机挑战</button></div>';
+    }
+    if(TAB === 'skin'){
+      var s50 = prog.skin50 || isCleared(50);
+      var gold = prog.gold || allCleared();
+      return '<div style="text-align:center;line-height:1.8;color:#cfe8ff">已通关 '+done+' / 100 关 · 当前皮肤：<b style="color:#ffe7a0">'+skinName(prog.skin)+'</b><br>'+
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:12px">'+
+        '<button class="diff-btn" onclick="applySkin(\'default\')">经典队服</button>'+
+        '<button class="diff-btn" '+(s50?'':'disabled')+' onclick="applySkin(\'ocean\')">'+(s50?'🌊 深海青':'🔒 第50关解锁')+'</button>'+
+        '<button class="diff-btn" '+(gold?'':'disabled')+' onclick="applySkin(\'gold\')">'+(gold?'🏆 冠军金':'🔒 全100关解锁')+'</button></div></div>';
+    }
+    return '<div style="text-align:center;line-height:1.75;color:#cfe8ff">已通关 <b style="color:#ffe7a0">'+done+' / 100</b> · 下一关：第 '+next+' 关<br>'+
+      '<span style="font-size:12px;color:#9ab6d4">第 50 关解锁皮肤，第 100 关通关解锁金色皮肤</span></div>';
+  }
+
+  function skinName(s){ return s==='gold'?'冠军金':(s==='ocean'?'深海青':'经典队服'); }
+
+  function renderLevels(){
+    var grid = el('level-grid'), info = el('level-info'), legend = el('level-legend');
+    if(!grid || !info) return;
+    if(TAB !== 'fixed'){
+      grid.style.display = 'none';
+      legend.innerHTML = TAB==='random'
+        ? '🎲 随机挑战不写入通关进度；规则从 21~100 关随机抽取，可能包含禁键/零封/逆转/噩梦。'
+        : '🎨 皮肤只改变你操控球队的球衣颜色；不影响球员能力与比赛平衡。';
+    } else {
+      grid.style.display = 'grid';
+      var html = '';
+      var max = maxCleared();
+      for(var i=1;i<=100;i++){
+        var locked = i > max+1 && !isCleared(i);
+        var cls = 'level-cell' + (isCleared(i)?' cleared':'') + (locked?' locked':'') +
+          ((i===max+1)?' current':'') + ((i===50||i===100)?' boss':'');
+        html += '<div class="'+cls+'" onclick="'+(locked?'levelLocked('+i+')':'startLevel('+i+')')+'">'+i+'</div>';
+      }
+      grid.innerHTML = html;
+      legend.innerHTML = '🟢 已通关　🔒 未解锁　⭐ 当前可挑战　🏅 第50关皮肤 / 第100关金色皮肤　·　'+
+        '关卡按顺序解锁；第 4~20 关进够目标球数立即通关。';
+    }
+    info.innerHTML = infoHTML();
+  }
+
+  window.openLevels = function(){
+    var p = el('level-panel');
+    if(!p) return;
+    var end = el('end'); if(end) end.classList.add('hidden');
+    var menu = el('menu'); if(menu) menu.classList.remove('hidden');
+    p.classList.remove('hidden');
+    TAB = 'fixed';
+    syncTabs();
+    renderLevels();
+  };
+  window.closeLevels = function(){ var p=el('level-panel'); if(p) p.classList.add('hidden'); };
+  window.levelTab = function(t){ TAB=t; syncTabs(); renderLevels(); };
+  function syncTabs(){
+    var f=el('level-tab-fixed'), r=el('level-tab-random'), s=el('level-tab-skin');
+    if(f) f.classList.toggle('selD', TAB==='fixed');
+    if(r) r.classList.toggle('selD', TAB==='random');
+    if(s) s.classList.toggle('selD', TAB==='skin');
+  }
+  window.levelLocked = function(id){ alert('第 '+id+' 关尚未解锁，请先通关第 '+(id-1)+' 关。'); };
+
+  window.applySkin = function(name){
+    var s50 = prog.skin50 || isCleared(50);
+    var gold = prog.gold || allCleared();
+    if(name==='ocean' && !s50){ alert('通关第 50 关后解锁深海青皮肤。'); return; }
+    if(name==='gold' && !gold){ alert('通关全部 100 关后解锁冠军金皮肤。'); return; }
+    prog.skin = name; saveProg();
+    if(name==='ocean'){ G.kitMain='#35e6c0'; G.kitGK='#b8fff2'; }
+    else if(name==='gold'){ G.kitMain='#ffd24a'; G.kitGK='#ffe9a8'; }
+    else { G.kitMain=''; G.kitGK=''; }
+    G._builtKit = null;
+    if(G.state==='menu'){ initTeams(); updateActive(); }
+    if(typeof sayComment==='function') sayComment('🎨 已切换皮肤：'+skinName(name)+'（下一场生效）');
+    renderLevels();
+  };
+
+  // 随机禁用一键：只从移动/射门/传球/加速/镜头里抽，Tab 切人永不参与
+  function pickDisable(){
+    var pool = [
+      ['up','上移'], ['down','下移'], ['left','左移'], ['right','右移'],
+      ['sprint','加速'], ['shoot','射门'], ['pass','传球'], ['camera','镜头']
+    ];
+    var pick = pool[Math.floor(Math.random()*pool.length)];
+    var code = BIND[pick[0]];
+    if(!code) code = pick[0]==='shoot' ? 'Space' : (pick[0]==='pass' ? 'KeyK' : (pick[0]==='camera' ? 'KeyC' : 'KeyW'));
+    G.levelDisableAction = pick[0];
+    G.levelDisableCode = code;
+    G.levelDisableLabel = pick[1] + '（' + keyLabel(code) + '）';
+  }
+
+  window.startLevel = function(id, random){
+    if(window.NET && NET.role){ alert('关卡模式不能联机，请先退出联机房间。'); return; }
+    if(!random && !isUnlocked(id)){ window.levelLocked(id); return; }
+    var cfg = cfgFor(id);
+    if(!cfg) return;
+    G.rankMode = false;
+    G.levelMode = true;
+    G.levelId = id;
+    G.levelRandom = !!random;
+    G.levelConfig = cfg;
+    G.levelSettled = false;
+    G.levelState = { passesStart:0, trailed:false, cleanFailed:false, settled:false, random:!!random };
+    G.levelTarget = cfg.target || 0;
+    G.matchSize = 11; G.matchMode = 'level';
+    G.levelDisableAction = null; G.levelDisableCode = null; G.levelDisableLabel = '';
+    if(cfg.disable) pickDisable();
+    setDifficulty(cfg.diff || 'hard');
+    if(window.closeLevels) closeLevels();
+    var end = el('end'); if(end) end.classList.add('hidden');
+    startGame();
+    // startGame 已经清零 stats，教学 2 的传球计数从这里开始
+    G.levelState.passesStart = (G.stats.passes[G.userTeam] || 0);
+    if(typeof sayComment==='function') sayComment('🎯 '+(random?'随机挑战':'第 '+id+' 关')+'：'+cfg.desc);
+    updateLevelHUD(true);
+  };
+
+  window.startRandomLevel = function(){
+    var id = 21 + Math.floor(Math.random()*80);   // 21~100
+    window.startLevel(id, true);
+  };
+
+  window.__levelRestart = function(){
+    if(!G.levelMode) return;
+    if(G.levelRandom) window.startRandomLevel();
+    else window.startLevel(G.levelId, false);
+  };
+
+  function checkWin(cfg, my, opp, st){
+    if(cfg.target && my < cfg.target) return false;
+    if(cfg.passes && ((G.stats.passes[G.userTeam]||0) - st.passesStart) < cfg.passes) return false;
+    if(cfg.clean && opp > 0) return false;
+    if(cfg.comeback && !st.trailed) return false;
+    return my > opp;
+  }
+
+  function levelFinish(win){
+    if(!G.levelMode || G.levelSettled) return;
+    G.levelSettled = true;
+    var st = G.levelState || {};
+    st.settled = true;
+    G.state = 'end';
+    var cfg = G.levelConfig || cfgFor(G.levelId) || {};
+    var my = G.score[G.userTeam], opp = G.score[1-G.userTeam];
+    var firstClear = false;
+    if(win && !G.levelRandom && !isCleared(G.levelId)){
+      prog.cleared.push(G.levelId);
+      firstClear = true;
+      if(G.levelId === 50) prog.skin50 = true;
+      if(allCleared()) prog.gold = true;
+      saveProg();
+    }
+    if(win && !G.levelRandom && G.levelId === 50) prog.skin50 = true;
+    if(win && !G.levelRandom && allCleared()) prog.gold = true;
+    if(win) saveProg();
+
+    var end = el('end'); if(!end) return;
+    var title = win ? '🏆 关卡通关！' : '❌ 关卡未通过';
+    el('end-title').textContent = title;
+    el('end-score').textContent = my + ' : ' + opp;
+    var msg = win ? ('第 '+G.levelId+' 关完成 · '+cfg.desc) : ('第 '+G.levelId+' 关失败 · '+cfg.desc+'（时间到或目标未达成）');
+    if(win && firstClear && G.levelId===50) msg += ' · 🎨 解锁深海青皮肤！';
+    if(win && firstClear && G.levelId===100) msg += ' · 🏆 解锁冠军金皮肤！';
+    el('end-msg').textContent = msg;
+    var logs = (G.goalLog||[]).map(function(g){
+      return '⚽ '+TEAM_COLORS[g.team].emoji+' '+TEAM_COLORS[g.team].name+(g.num?' #'+g.num:'')+' · 第'+g.minute+'分钟';
+    }).join('<br>');
+    el('end-log').innerHTML = logs + '<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">'+
+      '<button class="diff-btn" style="font-size:14px;padding:9px 18px" onclick="levelRetry()">↺ 再试一次</button>'+
+      '<button class="diff-btn" style="font-size:14px;padding:9px 18px" onclick="levelBack()">🎯 返回关卡</button>'+
+      '<button class="diff-btn" style="font-size:14px;padding:9px 18px" onclick="levelMenu()">🏠 主菜单</button></div>';
+    var rb = document.querySelector('#end .btn-primary'); if(rb) rb.style.display='none';
+    var rankBtn = el('btn-rank-end'); if(rankBtn) rankBtn.classList.add('hidden');
+    end.classList.remove('hidden');
+    hideLevelHUD();
+  }
+
+  window.levelRetry = function(){
+    var end = el('end'); if(end) end.classList.add('hidden');
+    if(G.levelRandom) startRandomLevel(); else startLevel(G.levelId);
+  };
+  window.levelBack = function(){
+    var end = el('end'); if(end) end.classList.add('hidden');
+    openLevels();
+  };
+  window.levelMenu = function(){
+    var end = el('end'); if(end) end.classList.add('hidden');
+    var menu = el('menu'); if(menu) menu.classList.remove('hidden');
+    G.state = 'menu';
+  };
+
+  window.__levelOnGoal = function(scorer){
+    if(!G.levelMode || !G.levelState || G.levelSettled) return;
+    var st = G.levelState, cfg = G.levelConfig || {};
+    var my = G.score[G.userTeam], opp = G.score[1-G.userTeam];
+    if(my < opp) st.trailed = true;
+    if(scorer !== G.userTeam && cfg.clean) st.cleanFailed = true;
+    if(scorer === G.userTeam && cfg.target && my >= cfg.target){
+      if(cfg.passes && ((G.stats.passes[G.userTeam]||0) - st.passesStart) < cfg.passes){
+        if(typeof sayComment==='function') sayComment('还差 '+(cfg.passes - ((G.stats.passes[G.userTeam]||0)-st.passesStart))+' 脚传球，继续组织！');
+        return;
+      }
+      if(cfg.clean && opp > 0) return;   // 已丢球，零封目标失败，等时间结束结算
+      setTimeout(function(){ levelFinish(true); }, 700);
+    }
+  };
+
+  window.__levelOnFullTime = function(){
+    if(!G.levelMode) return false;
+    var cfg = G.levelConfig || cfgFor(G.levelId) || {};
+    var st = G.levelState || {};
+    var my = G.score[G.userTeam], opp = G.score[1-G.userTeam];
+    if(my < opp) st.trailed = true;
+    if(cfg.clean && opp > 0) st.cleanFailed = true;
+    levelFinish(checkWin(cfg, my, opp, st));
+    return true;
+  };
+
+  function hideLevelHUD(){ var h=el('level-hud'); if(h) h.classList.add('hidden'); }
+  function updateLevelHUD(force){
+    var h = el('level-hud'); if(!h) return;
+    if(!G.levelMode || G.state==='menu' || G.state==='end'){
+      h.classList.add('hidden'); return;
+    }
+    var cfg = G.levelConfig || cfgFor(G.levelId) || {};
+    var st = G.levelState || {passesStart:0,trained:false};
+    var my = G.score[G.userTeam], opp = G.score[1-G.userTeam];
+    if(my < opp) st.trailed = true;
+    if(cfg.clean && opp > 0) st.cleanFailed = true;
+    var line = (G.levelRandom?'🎲 随机挑战':'第 '+G.levelId+' 关')+' · '+cfg.name;
+    if(cfg.target) line += '<br>目标：<b style="color:#9fffd0">'+my+' / '+cfg.target+'</b> 球';
+    else if(cfg.clean) line += '<br>目标：零封赢球'+(opp>0?'（已丢球，失败）':'');
+    else if(cfg.comeback) line += '<br>目标：先落后再逆转'+(st.trailed?'（已落后过）':'（尚未落后）');
+    else line += '<br>目标：赢下比赛';
+    if(cfg.passes) line += ' · 传球 '+Math.max(0,(G.stats.passes[G.userTeam]||0)-st.passesStart)+'/'+cfg.passes;
+    if(cfg.disable && G.levelDisableLabel) line += '<br><span style="color:#ff9d9d">🚫 禁用：'+G.levelDisableLabel+'（Tab 切人仍可用）</span>';
+    h.innerHTML = line;
+    h.classList.remove('hidden');
+  }
+  setInterval(function(){ updateLevelHUD(false); }, 450);
+
+  // 3v3 入口沿用联机面板，只是把房间人数改成 3
+  window.open3v3 = function(){
+    G.matchSize = 3; G.matchMode = '3v3';
+    if(window.openOnline) window.openOnline(3);
+    else alert('联机模块未加载');
+  };
+
 })();
 </script>
 </body>
