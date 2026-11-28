@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="application-name" content="鱼虾游戏足球大战">
-<meta name="description" content="鱼虾游戏足球大战（zhuj杯）：非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。">
+<meta name="application-name" content="鱼虾足球游戏大战">
+<meta name="description" content="鱼虾足球游戏大战（zhuj杯）：非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。">
 <meta name="theme-color" content="#0a0e16">
 <meta name="color-scheme" content="dark">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="鱼虾游戏足球大战">
+<meta name="apple-mobile-web-app-title" content="鱼虾足球游戏大战">
 <meta name="format-detection" content="telephone=no,address=no,email=no">
 <meta name="msapplication-TileColor" content="#0a0e16">
 <meta name="msapplication-TileImage" content="icons/icon-144-noface.png">
-<title>鱼虾游戏足球大战 · zhuj杯 · 3D 足球游戏 V0.8.0</title>
+<title>鱼虾足球游戏大战 · zhuj杯 · 3D 足球游戏 V0.8.0</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preload" href="js/three.min.js" as="script" fetchpriority="high">
 <link rel="icon" href="favicon.ico" sizes="any">
@@ -574,7 +574,7 @@
 <div id="menu" class="overlay">
   <div id="brand-trophy">🏆</div>
   <div id="menu-title">zhuj杯</div>
-  <div id="menu-sub">鱼虾游戏足球大战 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11v11 / 3v3 · 100 关挑战 · V0.8.0</div>
+  <div id="menu-sub">鱼虾足球游戏大战 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11v11 / 3v3 · 100 关挑战 · V0.8.0</div>
   <div class="team-cards">
     <div id="cardA" class="team-card selA" onclick="selectTeam(0)">
       <div class="flag">🐟</div>
@@ -755,7 +755,7 @@
 <script src="js/three.min.js"></script>
 <script>
 /* ============================================================
- *  鱼虾游戏足球大战 · 3D 足球冠军赛
+ *  鱼虾足球游戏大战 · 3D 足球冠军赛
  *  2026 足球冠军赛风格 · 11v11 · AI 对手自动跑位/传球/射门
  *  玩家键盘操控 · 5 张人像建模 · 小鱼鱼 vs 小虾虾
  * ============================================================ */
@@ -771,7 +771,7 @@ const STAMINA_DRAIN = 0.34;      // 每秒冲刺消耗（满体力约 3 秒）
 const STAMINA_REGEN = 0.22;      // 每秒恢复
 const STAMINA_COOLDOWN = 1.0;    // 耗尽后的恢复冷却
 const STAMINA_MIN_SPRINT = 0.10; // 低于这个值不能起速
-// —— 难度平衡（鱼虾游戏足球大战 版：AI 有威胁但玩家完全能赢）——
+// —— 难度平衡（鱼虾足球游戏大战 版：AI 有威胁但玩家完全能赢）——
 let AI_SPRINT = 10.4;            // AI 冲刺速度（简单 10.4 / 困难 11.8）
 let AI_TACKLE_CHANCE = 0.16;     // AI 防守抢断成功率
 let AI_PICKUP_R = 1.3;           // AI 自由球拾取半径
@@ -1009,7 +1009,7 @@ let standMat = null, standMats = [], wallMat = null, wallAdMat = null, roofMat2 
 let scrTex = null, scrTex3 = null;
 let adCanvas = null, adTexGlobal = null, adRollT = 0;
 let adTexList = [], adIdx = 0, adMatGlobal = null;
-let adItems = ['鱼虾游戏足球大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
+let adItems = ['鱼虾足球游戏大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
 let crowdFlash = 0;
 const crowdGuys = [];
 function paintScreen(){
@@ -1056,7 +1056,7 @@ function buildStadium(){
 
   // 广告板围墙（赛事品牌，滚动显示；预绘制纹理，滚动零开销）
   adCanvas = makeCanvas(512,128);
-  adItems = ['鱼虾游戏足球大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
+  adItems = ['鱼虾足球游戏大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
   paintAd();
   adMatGlobal = new THREE.MeshLambertMaterial({map: adTexList[0]});
   adTexList[0].repeat.set(4,1);   // 长带沿墙重复 4 次，offset 周期滚动无缝回绕
@@ -1194,7 +1194,7 @@ function buildStadium(){
     new THREE.MeshLambertMaterial({color:0x2a3544}));
   apron.rotation.x = -Math.PI/2; apron.position.y = -0.18; apron.receiveShadow = true; scene.add(apron);
   wallMat = new THREE.MeshLambertMaterial({color:0x232b36, side:THREE.DoubleSide});   // 下层素色围墙
-  wallAdMat = new THREE.MeshLambertMaterial({map: makeAdTex(['鱼虾游戏足球大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门']), side:THREE.DoubleSide});
+  wallAdMat = new THREE.MeshLambertMaterial({map: makeAdTex(['鱼虾足球游戏大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门']), side:THREE.DoubleSide});
   wallAdMat.map.wrapS = THREE.RepeatWrapping; wallAdMat.map.repeat.set(4,1); wallAdMat.map.anisotropy=8;
   const wallW = 3;
   const mkWall2 = (len, h, d, x, z, adH2)=>{

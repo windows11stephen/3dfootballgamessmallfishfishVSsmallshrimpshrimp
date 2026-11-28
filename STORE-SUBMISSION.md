@@ -1,4 +1,4 @@
-# Microsoft Store 提交包 · 鱼虾游戏足球大战
+# Microsoft Store 提交包 · 鱼虾足球游戏大战
 
 > 本文件是提交前的操作手册，不是给商店审核看的用户文档。所有 `<>` 占位项必须替换成 Partner Center 中的真实值；不要把占位包上传。
 >
@@ -34,7 +34,7 @@
    - 行为准则：`.../code-of-conduct.html`
    - 举报：`.../report.html`
    - 帮助：`.../support.html`
-3. 确认线上首页不再出现“世界杯 / World Cup / FIFA / 官方 / 授权”等旧文案；标题应为 `鱼虾游戏足球大战 · zhuj杯 · 3D 足球游戏`。
+3. 确认线上首页不再出现“世界杯 / World Cup / FIFA / 官方 / 授权”等旧文案；标题应为 `鱼虾足球游戏大战 · zhuj杯 · 3D 足球游戏`。
 4. 在浏览器开发者工具 → Application → Manifest 检查：名称、图标、`start_url`、`scope`、`display` 正确；Service Worker 显示 `zhuj-cup-2026-v0.8.0` 已激活。
 5. 断网重载一次，确认菜单能打开；打开隐私/协议页，确认离线也能显示。
 
@@ -49,7 +49,7 @@
 | Package ID | Partner Center 的 Package Identity Name |
 | Publisher ID | Partner Center 的 Publisher ID（`CN=...`） |
 | Publisher display name | Partner Center 的 Publisher Display Name |
-| App name | `鱼虾游戏足球大战` |
+| App name | `鱼虾足球游戏大战` |
 | Version | `0.8.0.0`（Microsoft Store 四段版本号；后续递增） |
 | Start URL | `https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/index.html` |
 | Icon | 上传 `icons/icon-1024.png`（无脸 VS 图标） |
@@ -59,9 +59,9 @@
 | Signing | 不勾选/使用 Store 签名（按 PWABuilder 当前选项） |
 
 4. 下载生成的 ZIP。里面应有：
-   - `鱼虾游戏足球大战.msixbundle`
-   - `鱼虾游戏足球大战.classic.appxbundle`
-   - `鱼虾游戏足球大战.sideload.msix`（仅测试，不上传）
+   - `鱼虾足球游戏大战.msixbundle`
+   - `鱼虾足球游戏大战.classic.appxbundle`
+   - `鱼虾足球游戏大战.sideload.msix`（仅测试，不上传）
    - `install.ps1`（仅侧载测试，不上传）
 5. 解压/检查（可选）：包内 `AppxManifest.xml` 的 `Identity Name`、`Publisher`、`PublisherDisplayName` 必须与 Partner Center 完全一致；`--app-fallback-url` 和 `start-url` 必须是 GitHub Pages，不得出现 `tunnelmole.net`。
 6. 把 `.msixbundle` 和 `.classic.appxbundle` 放到 `store-package/final/`，不要上传 `.sideload.msix` 或旧测试包。
@@ -80,7 +80,7 @@
 
 | 字段 | 建议内容 |
 |---|---|
-| Product name | `鱼虾游戏足球大战` |
+| Product name | `鱼虾足球游戏大战` |
 | Short description（短描述） | `独立非官方 3D 足球游戏：小鱼鱼 vs 小虾虾，11v11、3v3、联机、排位与 100 关挑战。` |
 | Full description（完整描述） | 见下方“商店描述文案” |
 | Keywords | `足球, 3D, 体育, 联机, 排位, 独立游戏`（最多 7 个，按商店当前限制） |
@@ -88,7 +88,7 @@
 | Privacy policy URL | `https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/privacy.html` |
 | Support URL | `https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/support.html` |
 | Website | `https://github.com/windows11stephen/3dfootballgamessmallfishfishVSsmallshrimpshrimp` |
-| Copyright | `© 2026 鱼虾游戏足球大战. Original content; third-party notices at THIRD-PARTY-NOTICES.md.` |
+| Copyright | `© 2026 鱼虾足球游戏大战. Original content; third-party notices at THIRD-PARTY-NOTICES.md.` |
 | Age rating | 以 IARC 问卷结果为准（保守目标 12+；见 `AGE-RATING.md`） |
 
 ### 4.3 商店描述文案
@@ -102,7 +102,7 @@
 **完整描述：**
 
 ```text
-鱼虾游戏足球大战（zhuj杯）是一款独立、非官方的 3D 足球游戏。你可以在小鱼鱼队和小虾虾队之间选择，进行 11v11 标准比赛、3v3 小队比赛、联机对战、排位赛，以及 100 关挑战。
+鱼虾足球游戏大战（zhuj杯）是一款独立、非官方的 3D 足球游戏。你可以在小鱼鱼队和小虾虾队之间选择，进行 11v11 标准比赛、3v3 小队比赛、联机对战、排位赛，以及 100 关挑战。
 
 主要功能：
 • 11v11 与 3v3 两种比赛模式
@@ -192,7 +192,7 @@ Suggested rating: 12+ (Users Interact) because nicknames and leaderboard entries
 
 ### 6.1 已做的规避
 
-- 游戏名、队名、角色为原创：`鱼虾游戏足球大战`、`小鱼鱼`、`小虾虾`；不使用 FIFA、World Cup、UEFA、真实俱乐部/球员/球衣/队徽。
+- 游戏名、队名、角色为原创：`鱼虾足球游戏大战`、`小鱼鱼`、`小虾虾`；不使用 FIFA、World Cup、UEFA、真实俱乐部/球员/球衣/队徽。
 - 不使用其他游戏的素材、UI、角色、音乐、代码；Three.js 为 MIT 许可。
 - 不使用真实赛事数据、真实转播画面、真实球员肖像（`fb/` 头像为用户声明已授权）。
 - 不实现具体专利玩法：没有 Konami 的“屏幕边缘 guide mark”、没有 EA 的 volumetric capture/mimic 动画专利方案、没有 Ballinno 的现实 VAR/越位系统、没有 White Knuckle 的现实赛事数据同步。
@@ -217,14 +217,14 @@ Suggested rating: 12+ (Users Interact) because nicknames and leaderboard entries
 ## 7. 提交记录（生成包时填写）
 
 ```text
-Partner Center 应用名：鱼虾游戏足球大战
+Partner Center 应用名：鱼虾足球游戏大战
 Package ID（Package Identity Name）：474FFE41.35077CE1C329B
 Publisher ID：CN=07FF8F70-E697-4738-9E1B-5940F4E35BDC
 Publisher Display Name：一条小鱼~
 版本：0.8.0.0
 Start URL：https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/index.html
 包生成时间：<PASTE>
-包文件名：鱼虾游戏足球大战.msixbundle / 鱼虾游戏足球大战.classic.appxbundle
+包文件名：鱼虾足球游戏大战.msixbundle / 鱼虾足球游戏大战.classic.appxbundle
 ```
 
 ## 8. 提交前最后 10 项检查

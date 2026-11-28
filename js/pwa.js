@@ -1,4 +1,4 @@
-/* 鱼虾游戏足球大战 PWA 安装入口与服务注册 */
+/* 鱼虾足球游戏大战 PWA 安装入口与服务注册 */
 (function () {
   var installPrompt = null;
   var installBtn = null;

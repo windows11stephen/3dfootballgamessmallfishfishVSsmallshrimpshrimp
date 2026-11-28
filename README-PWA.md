@@ -1,4 +1,4 @@
-# 鱼虾游戏足球大战 · PWA 部署与商店包说明
+# 鱼虾足球游戏大战 · PWA 部署与商店包说明
 
 独立、非官方 3D 足球游戏。支持 11v11、3v3、联机、排位、100 关挑战；可安装为 PWA，也可通过 Microsoft Store 分发 Windows 版。
 
@@ -53,8 +53,8 @@ python -m http.server 4173
 2. PWABuilder → Package for Stores → Windows → Generate Package。
 3. 上传 `icons/icon-1024.png`（无脸 VS 图标）。
 4. 下载 ZIP，取：
-   - `鱼虾游戏足球大战.msixbundle`
-   - `鱼虾游戏足球大战.classic.appxbundle`
+   - `鱼虾足球游戏大战.msixbundle`
+   - `鱼虾足球游戏大战.classic.appxbundle`
 5. 在 Partner Center → Packages 上传这两个包。
 6. 填 Store listing、隐私/支持 URL、IARC 年龄分级、审核备注，提交认证。
 
