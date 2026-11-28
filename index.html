@@ -3,19 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="application-name" content="zhuj杯 2026 足球游戏">
-<meta name="description" content="zhuj杯 2026 足球冠军赛：非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。">
+<meta name="application-name" content="zhuj杯 足球游戏">
+<meta name="description" content="鱼虾游戏足球大战（zhuj杯）：非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。">
 <meta name="theme-color" content="#0a0e16">
 <meta name="color-scheme" content="dark">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="zhuj杯 2026">
+<meta name="apple-mobile-web-app-title" content="zhuj杯">
 <meta name="format-detection" content="telephone=no,address=no,email=no">
 <meta name="msapplication-TileColor" content="#0a0e16">
 <meta name="msapplication-TileImage" content="icons/icon-144-noface.png">
-<title>zhuj杯 2026 · 3D 足球游戏 V0.8.0</title>
+<title>鱼虾游戏足球大战 · zhuj杯 · 3D 足球游戏 V0.8.0</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preload" href="js/three.min.js" as="script" fetchpriority="high">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32-noface.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192-noface.png">
@@ -511,7 +512,7 @@
 
 <!-- HUD -->
 <div id="scoreboard" class="hud">
-  <div id="tournament-tag">🏆 zhuj杯 2026 · 足球冠军赛 <span style="font-size:10px;opacity:.75">V0.8.0</span></div>
+  <div id="tournament-tag">🏆 zhuj杯 · 足球冠军赛 <span style="font-size:10px;opacity:.75">V0.8.0</span></div>
   <div id="sb-card">
     <span id="teamA-name" class="teamname"><span class="badge">🐟</span>小鱼鱼</span>
     <span id="scoreA" class="score">0</span>
@@ -572,8 +573,8 @@
 <div id="level-hud" class="hidden"></div>
 <div id="menu" class="overlay">
   <div id="brand-trophy">🏆</div>
-  <div id="menu-title">zhuj杯 2026</div>
-  <div id="menu-sub">2026 足球冠军赛 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11v11 / 3v3 · 100 关挑战 · V0.8.0</div>
+  <div id="menu-title">zhuj杯</div>
+  <div id="menu-sub">鱼虾游戏足球大战 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11v11 / 3v3 · 100 关挑战 · V0.8.0</div>
   <div class="team-cards">
     <div id="cardA" class="team-card selA" onclick="selectTeam(0)">
       <div class="flag">🐟</div>
@@ -589,10 +590,10 @@
     </div>
   </div>
   <div class="face-strip">
-    <div class="fbox"><img src="fb/20_hd.jpg" alt="f1"><div class="cap">21 号</div></div>
-    <div class="fbox"><img src="fb/21.jpg" alt="f2"><div class="cap">22 号</div></div>
-    <div class="fbox"><img src="fb/24.jpg" alt="f3"><div class="cap">25 号</div></div>
-    <div class="fbox"><img src="fb/32.jpg" alt="f4"><div class="cap">33 号</div></div>
+    <div class="fbox"><img src="fb/20_hd.jpg" alt="f1" width="64" height="64" decoding="async"><div class="cap">21 号</div></div>
+    <div class="fbox"><img src="fb/21.jpg" alt="f2" width="64" height="64" decoding="async"><div class="cap">22 号</div></div>
+    <div class="fbox"><img src="fb/24.jpg" alt="f3" width="64" height="64" decoding="async"><div class="cap">25 号</div></div>
+    <div class="fbox"><img src="fb/32.jpg" alt="f4" width="64" height="64" decoding="async"><div class="cap">33 号</div></div>
   </div>
   <div class="diff-row">
     <button id="diff-easy" class="diff-btn selD" onclick="setDifficulty('easy')">😊 简单</button>
@@ -754,13 +755,13 @@
 <script src="js/three.min.js"></script>
 <script>
 /* ============================================================
- *  zhuj杯 2026 · 3D 足球冠军赛
+ *  鱼虾游戏足球大战 · 3D 足球冠军赛
  *  2026 足球冠军赛风格 · 11v11 · AI 对手自动跑位/传球/射门
  *  玩家键盘操控 · 5 张人像建模 · 小鱼鱼 vs 小虾虾
  * ============================================================ */
 
 // ---------------- 常量 ----------------
-const TOURNAMENT = 'zhuj杯 2026';
+const TOURNAMENT = 'zhuj杯';
 const FIELD_W = 105, FIELD_H = 68, HALF_W = 52.5, HALF_H = 34;
 const GOAL_W = 7.32, GOAL_H = 2.44, GOAL_D = 2.4;
 const BALL_R = 0.34, PICKUP_R = 1.55, GRAVITY = 22, BALL_FRICTION = 0.55;
@@ -770,7 +771,7 @@ const STAMINA_DRAIN = 0.34;      // 每秒冲刺消耗（满体力约 3 秒）
 const STAMINA_REGEN = 0.22;      // 每秒恢复
 const STAMINA_COOLDOWN = 1.0;    // 耗尽后的恢复冷却
 const STAMINA_MIN_SPRINT = 0.10; // 低于这个值不能起速
-// —— 难度平衡（zhuj杯 2026 版：AI 有威胁但玩家完全能赢）——
+// —— 难度平衡（鱼虾游戏足球大战 版：AI 有威胁但玩家完全能赢）——
 let AI_SPRINT = 10.4;            // AI 冲刺速度（简单 10.4 / 困难 11.8）
 let AI_TACKLE_CHANCE = 0.16;     // AI 防守抢断成功率
 let AI_PICKUP_R = 1.3;           // AI 自由球拾取半径
@@ -1008,7 +1009,7 @@ let standMat = null, standMats = [], wallMat = null, wallAdMat = null, roofMat2 
 let scrTex = null, scrTex3 = null;
 let adCanvas = null, adTexGlobal = null, adRollT = 0;
 let adTexList = [], adIdx = 0, adMatGlobal = null;
-let adItems = ['zhuj杯 2026','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
+let adItems = ['鱼虾游戏足球大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
 let crowdFlash = 0;
 const crowdGuys = [];
 function paintScreen(){
@@ -1055,7 +1056,7 @@ function buildStadium(){
 
   // 广告板围墙（赛事品牌，滚动显示；预绘制纹理，滚动零开销）
   adCanvas = makeCanvas(512,128);
-  adItems = ['zhuj杯 2026','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
+  adItems = ['鱼虾游戏足球大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
   paintAd();
   adMatGlobal = new THREE.MeshLambertMaterial({map: adTexList[0]});
   adTexList[0].repeat.set(4,1);   // 长带沿墙重复 4 次，offset 周期滚动无缝回绕
@@ -1193,7 +1194,7 @@ function buildStadium(){
     new THREE.MeshLambertMaterial({color:0x2a3544}));
   apron.rotation.x = -Math.PI/2; apron.position.y = -0.18; apron.receiveShadow = true; scene.add(apron);
   wallMat = new THREE.MeshLambertMaterial({color:0x232b36, side:THREE.DoubleSide});   // 下层素色围墙
-  wallAdMat = new THREE.MeshLambertMaterial({map: makeAdTex(['zhuj杯 2026','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门']), side:THREE.DoubleSide});
+  wallAdMat = new THREE.MeshLambertMaterial({map: makeAdTex(['鱼虾游戏足球大战','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门']), side:THREE.DoubleSide});
   wallAdMat.map.wrapS = THREE.RepeatWrapping; wallAdMat.map.repeat.set(4,1); wallAdMat.map.anisotropy=8;
   const wallW = 3;
   const mkWall2 = (len, h, d, x, z, adH2)=>{
@@ -1920,6 +1921,22 @@ function resolveCollisions(){
 }
 
 // ---------------- 贴身抢断（优先于 AI 传球决策，玩家抢断更强） ----------------
+const _tackleScreenVec = new THREE.Vector3();
+const _tackleCamDir = new THREE.Vector3();
+const _tackleToVec = new THREE.Vector3();
+// 只允许画面内的球员下脚：避免“屏幕外看不见的人突然伸脚抢断”。
+function playerOnScreen(p, margin=0.10){
+  if(!p || !p.mesh || p.mesh.visible===false) return false;
+  camera.getWorldDirection(_tackleCamDir);
+  p.mesh.getWorldPosition(_tackleScreenVec);
+  _tackleScreenVec.y += 1.0;
+  _tackleToVec.copy(_tackleScreenVec).sub(camera.position);
+  if(_tackleToVec.dot(_tackleCamDir) <= 0) return false;   // 在镜头背后
+  _tackleScreenVec.project(camera);
+  return _tackleScreenVec.z >= -1 && _tackleScreenVec.z <= 1 &&
+         Math.abs(_tackleScreenVec.x) <= 1 + margin &&
+         Math.abs(_tackleScreenVec.y) <= 1 + margin;
+}
 function tryTackle(o, dt){
   if(!ball.owner || ball.owner!==o) return false;
   if(o.tackleCd>0){ o.tackleCd -= dt; return false; }
@@ -1942,6 +1959,7 @@ function tryTackle(o, dt){
     }
   }
   for(const p of cands){
+    if(!playerOnScreen(p)) continue;   // 画面外的人不许“无影抢断”
     const faceX=Math.cos(o.facing), faceZ=Math.sin(o.facing);
     const tdx=p.pos.x-o.pos.x, tdz=p.pos.z-o.pos.z;
     const tl=Math.hypot(tdx,tdz)||1;
@@ -2478,8 +2496,17 @@ function updateGKHold(dt){
   }
 }
 
+// 门将扑救概率：我方低于对手；噩梦模式的对手门将 100% 扑救。
+function keeperSaveProbability(gk, closeRange){
+  const isMine = gk.team === G.userTeam;
+  if(!isMine && G.difficulty === 'nightmare') return 1.0;
+  if(isMine) return closeRange ? 0.58 : 0.48;
+  const base = G.difficulty === 'easy' ? 0.70 : (G.difficulty === 'hard' ? 0.82 : 0.88);
+  return closeRange ? base : base * 0.82;
+}
+
 // 门线救命扑救：在进球判定之前执行，避免球一越过门线就直接算进球。
-// 双方门将都很高概率扑出，但每次扑救后进入冷却；冷却期间才可能被进球。
+// 双方门将不再近乎必扑；我方成功率低于对手，噩梦对手 100%。
 function goalLineKeeperSave(b){
   if(b.owner) return false;
   const plus = b.pos.x > HALF_W - 1.2 && b.vel.x > 1;
@@ -2491,7 +2518,7 @@ function goalLineKeeperSave(b){
   if(!gk || gk.saveCd > 0) return false;
   const d = dist2D(gk.pos.x, gk.pos.z, b.pos.x, b.pos.z);
   if(d > 3.7) return false;
-  if(Math.random() > 0.985) return false;
+  if(Math.random() >= keeperSaveProbability(gk, true)) return false;
 
   gk.saveCd = 1.05;
   gk.diveT = 0.85;
@@ -2593,12 +2620,11 @@ function updateBall(dt){
       clampPlayer(gk);
       const d = dist2D(gk.pos.x, gk.pos.z, ball.pos.x, ball.pos.z);
       const reach = 3.20;
-      if(gk.saveCd <= 0 && d < reach && b.speed < 45){
-        const easy = G.difficulty === 'easy';
-        // 双方都大幅提高扑救率；噩梦更高，简单略低但仍明显高于旧版。
-        const base = easy ? 0.90 : (G.difficulty==='nightmare'? 0.985 : 0.96);
+      const isNightmareOpponentGK = G.difficulty === 'nightmare' && gk.team !== G.userTeam;
+      if(gk.saveCd <= 0 && d < reach && (b.speed < 45 || isNightmareOpponentGK)){
         const close = 1.60;
-        const prob = d < close? base : base*0.82;
+        // 双方扑救率都下降；我方低于对手，噩梦对手 100%。
+        const prob = keeperSaveProbability(gk, d < close);
         if(Math.random() < prob){
           gk.saveCd = 1.05;
           if(b.speed > 13){
@@ -2950,7 +2976,7 @@ function skipReplay(){ if(G.state==='replay') G.stateT = 0.001; }
 function applyDifficulty(d){
   var rank = !!G.rankMode;
   if(d==='nightmare'){
-    // 噩梦：速度/抢断/射程/逼抢全面加强；配合跑位在 updateOpponentAI 里单独加强
+    // 噩梦：速度/抢断/射程/逼抢全面加强；对方门将 100% 扑救；配合跑位在 updateOpponentAI 里单独加强
     AI_SPRINT = rank ? 12.4 : 13.4;
     AI_TACKLE_CHANCE = rank ? 0.50 : 0.68;
     AI_PICKUP_R = rank ? 1.55 : 1.75;
@@ -2973,9 +2999,9 @@ function applyDifficulty(d){
   document.getElementById('diff-hard').classList.toggle('selD', d==='hard');
   const dn = document.getElementById('diff-nightmare');
   if(dn) dn.classList.toggle('selD', d==='nightmare');
-  sayComment(d==='nightmare'? '😈 噩梦模式：对手全力配合，传球、跑位、逼抢全部拉满！' :
+  sayComment(d==='nightmare'? '😈 噩梦模式：对手全力配合，传球、跑位、逼抢全部拉满，对方门将 100% 扑救！' :
              d==='hard'? '🔥 困难模式：对手不设进球限制，全力进攻！' :
-             '😊 简单模式：对手需先完成 3 次传球才能射门，门将扑救也会降低');
+             '😊 简单模式：对手需先完成 3 次传球才能射门，对方门将扑救率也会降低');
   sfx('btn');
 }
 function setDifficulty(mode){ applyDifficulty(mode); }

@@ -1,4 +1,4 @@
-# Microsoft Store 提交包 · zhuj杯 2026
+# Microsoft Store 提交包 · 鱼虾游戏足球大战
 
 > 本文件是提交前的操作手册，不是给商店审核看的用户文档。所有 `<>` 占位项必须替换成 Partner Center 中的真实值；不要把占位包上传。
 >
@@ -8,19 +8,19 @@
 
 ## 0. 一句话结论
 
-当前站点在“内容与合规文件”层面已经具备提交条件；**仍缺 3 个 Partner Center 身份值和一次正式包生成**。不要上传旧的 `zhuj-cup-2026-vs-icon-test.zip`：它的 Publisher 是 `My Company Inc`、Package ID 是 `MyCompany.zhuj2026`、回退地址是临时 tunnelmole、图标还是带脸旧图。
+当前站点在“内容与合规文件”层面已经具备提交条件；**Partner Center 身份值已取得，仍缺一次正式包生成**。不要上传旧的 `zhuj-cup-2026-vs-icon-test.zip`：它的 Publisher 是 `My Company Inc`、Package ID 是 `MyCompany.zhuj2026`、回退地址是临时 tunnelmole、图标还是带脸旧图。
 
 ## 1. 必须先拿到的 3 个值
 
 登录 [Microsoft Partner Center](https://partner.microsoft.com/dashboard) → 你的应用 → **Product identity / 产品标识**，复制：
 
-| 字段 | Partner Center 中的名称 | 示例 | 用途 |
+| 字段 | Partner Center 中的名称 | 当前值 | 用途 |
 |---|---|---|---|
-| Package ID | Package Identity Name / 包标识名称 | `YourPublisher.zhuj2026` | PWABuilder 的 “Package ID” |
-| Publisher ID | Publisher ID / 发布者 ID | `CN=xxxxxxxx-....` | PWABuilder 的 “Publisher ID” |
-| Publisher display name | Publisher Display Name / 发布者显示名称 | `Your Studio` | PWABuilder 的 “Publisher display name” |
+| Package ID | Package Identity Name / 包标识名称 | `474FFE41.35077CE1C329B` | PWABuilder 的 “Package ID” |
+| Publisher ID | Publisher ID / 发布者 ID | `CN=07FF8F70-E697-4738-9E1B-5940F4E35BDC` | PWABuilder 的 “Publisher ID” |
+| Publisher display name | Publisher Display Name / 发布者显示名称 | `一条小鱼~` | PWABuilder 的 “Publisher display name” |
 
-把这三个值填入本文件末尾的“提交记录”，再生成包。**Package ID 和 Publisher ID 必须与 Partner Center 完全一致，大小写、空格、`CN=` 都不能改。**
+这三个值已经填入本文件末尾的“提交记录”，生成包时直接使用。**Package ID 和 Publisher ID 必须与 Partner Center 完全一致，大小写、空格、`CN=` 都不能改。**
 
 ## 2. 站点部署（必须先做）
 
@@ -34,8 +34,8 @@
    - 行为准则：`.../code-of-conduct.html`
    - 举报：`.../report.html`
    - 帮助：`.../support.html`
-3. 确认线上首页不再出现“世界杯 / World Cup / FIFA / 官方 / 授权”等旧文案；标题应为 `zhuj杯 2026 · 3D 足球游戏`。
-4. 在浏览器开发者工具 → Application → Manifest 检查：名称、图标、`start_url`、`scope`、`display` 正确；Service Worker 显示 `zhuj-cup-2026-v7` 已激活。
+3. 确认线上首页不再出现“世界杯 / World Cup / FIFA / 官方 / 授权”等旧文案；标题应为 `鱼虾游戏足球大战 · zhuj杯 · 3D 足球游戏`。
+4. 在浏览器开发者工具 → Application → Manifest 检查：名称、图标、`start_url`、`scope`、`display` 正确；Service Worker 显示 `zhuj-cup-2026-v0.8.0` 已激活。
 5. 断网重载一次，确认菜单能打开；打开隐私/协议页，确认离线也能显示。
 
 ## 3. 生成正式商店包（PWABuilder）
@@ -49,7 +49,7 @@
 | Package ID | Partner Center 的 Package Identity Name |
 | Publisher ID | Partner Center 的 Publisher ID（`CN=...`） |
 | Publisher display name | Partner Center 的 Publisher Display Name |
-| App name | `zhuj杯 2026` |
+| App name | `鱼虾游戏足球大战` |
 | Version | `0.8.0.0`（Microsoft Store 四段版本号；后续递增） |
 | Start URL | `https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/index.html` |
 | Icon | 上传 `icons/icon-1024.png`（无脸 VS 图标） |
@@ -59,9 +59,9 @@
 | Signing | 不勾选/使用 Store 签名（按 PWABuilder 当前选项） |
 
 4. 下载生成的 ZIP。里面应有：
-   - `zhuj杯 2026.msixbundle`
-   - `zhuj杯 2026.classic.appxbundle`
-   - `zhuj杯 2026.sideload.msix`（仅测试，不上传）
+   - `鱼虾游戏足球大战.msixbundle`
+   - `鱼虾游戏足球大战.classic.appxbundle`
+   - `鱼虾游戏足球大战.sideload.msix`（仅测试，不上传）
    - `install.ps1`（仅侧载测试，不上传）
 5. 解压/检查（可选）：包内 `AppxManifest.xml` 的 `Identity Name`、`Publisher`、`PublisherDisplayName` 必须与 Partner Center 完全一致；`--app-fallback-url` 和 `start-url` 必须是 GitHub Pages，不得出现 `tunnelmole.net`。
 6. 把 `.msixbundle` 和 `.classic.appxbundle` 放到 `store-package/final/`，不要上传 `.sideload.msix` 或旧测试包。
@@ -80,7 +80,7 @@
 
 | 字段 | 建议内容 |
 |---|---|
-| Product name | `zhuj杯 2026` |
+| Product name | `鱼虾游戏足球大战` |
 | Short description（短描述） | `独立非官方 3D 足球游戏：小鱼鱼 vs 小虾虾，11v11、3v3、联机、排位与 100 关挑战。` |
 | Full description（完整描述） | 见下方“商店描述文案” |
 | Keywords | `足球, 3D, 体育, 联机, 排位, 独立游戏`（最多 7 个，按商店当前限制） |
@@ -88,7 +88,7 @@
 | Privacy policy URL | `https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/privacy.html` |
 | Support URL | `https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/support.html` |
 | Website | `https://github.com/windows11stephen/3dfootballgamessmallfishfishVSsmallshrimpshrimp` |
-| Copyright | `© 2026 zhuj杯 2026. Original content; third-party notices at THIRD-PARTY-NOTICES.md.` |
+| Copyright | `© 2026 鱼虾游戏足球大战. Original content; third-party notices at THIRD-PARTY-NOTICES.md.` |
 | Age rating | 以 IARC 问卷结果为准（保守目标 12+；见 `AGE-RATING.md`） |
 
 ### 4.3 商店描述文案
@@ -102,7 +102,7 @@
 **完整描述：**
 
 ```text
-zhuj杯 2026 是一款独立、非官方的 3D 足球游戏。你可以在小鱼鱼队和小虾虾队之间选择，进行 11v11 标准比赛、3v3 小队比赛、联机对战、排位赛，以及 100 关挑战。
+鱼虾游戏足球大战（zhuj杯）是一款独立、非官方的 3D 足球游戏。你可以在小鱼鱼队和小虾虾队之间选择，进行 11v11 标准比赛、3v3 小队比赛、联机对战、排位赛，以及 100 关挑战。
 
 主要功能：
 • 11v11 与 3v3 两种比赛模式
@@ -172,7 +172,7 @@ Suggested rating: 12+ (Users Interact) because nicknames and leaderboard entries
 
 | 项目 | 当前状态 | 说明 / 动作 |
 |---|---|---|
-| 正式包身份匹配 | **待办** | 必须用 Partner Center 的 Package ID / Publisher ID / Display Name 重新生成；旧包是 `MyCompany.zhuj2026` / `My Company Inc`，不能用 |
+| 正式包身份匹配 | **待生成** | Partner Center 身份值已取得（见第 1 节）；用真实 Package ID / Publisher ID / Display Name 生成，旧包不能再用 |
 | 稳定域名 | 待部署 | 线上必须是 GitHub Pages，不得是 `tunnelmole.net`；部署后重新跑 PWABuilder |
 | 隐私政策 | 已准备 | `privacy.html`，含 MQTT/WebRTC/排行榜/删除/儿童/跨境 |
 | 用户协议 | 已准备 | `terms.html`，含许可、限制、UGC、免责声明、无官方关联 |
@@ -192,7 +192,7 @@ Suggested rating: 12+ (Users Interact) because nicknames and leaderboard entries
 
 ### 6.1 已做的规避
 
-- 游戏名、队名、角色为原创：`zhuj杯 2026`、`小鱼鱼`、`小虾虾`；不使用 FIFA、World Cup、UEFA、真实俱乐部/球员/球衣/队徽。
+- 游戏名、队名、角色为原创：`鱼虾游戏足球大战`、`小鱼鱼`、`小虾虾`；不使用 FIFA、World Cup、UEFA、真实俱乐部/球员/球衣/队徽。
 - 不使用其他游戏的素材、UI、角色、音乐、代码；Three.js 为 MIT 许可。
 - 不使用真实赛事数据、真实转播画面、真实球员肖像（`fb/` 头像为用户声明已授权）。
 - 不实现具体专利玩法：没有 Konami 的“屏幕边缘 guide mark”、没有 EA 的 volumetric capture/mimic 动画专利方案、没有 Ballinno 的现实 VAR/越位系统、没有 White Knuckle 的现实赛事数据同步。
@@ -217,14 +217,14 @@ Suggested rating: 12+ (Users Interact) because nicknames and leaderboard entries
 ## 7. 提交记录（生成包时填写）
 
 ```text
-Partner Center 应用名：zhuj杯 2026
-Package ID（Package Identity Name）：<PASTE>
-Publisher ID：<PASTE>
-Publisher Display Name：<PASTE>
+Partner Center 应用名：鱼虾游戏足球大战
+Package ID（Package Identity Name）：474FFE41.35077CE1C329B
+Publisher ID：CN=07FF8F70-E697-4738-9E1B-5940F4E35BDC
+Publisher Display Name：一条小鱼~
 版本：0.8.0.0
 Start URL：https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsmallshrimpshrimp/index.html
 包生成时间：<PASTE>
-包文件名：zhuj杯 2026.msixbundle / zhuj杯 2026.classic.appxbundle
+包文件名：鱼虾游戏足球大战.msixbundle / 鱼虾游戏足球大战.classic.appxbundle
 ```
 
 ## 8. 提交前最后 10 项检查
@@ -233,7 +233,7 @@ Start URL：https://windows11stephen.github.io/3dfootballgamessmallfishfishVSsma
 - [ ] 线上首页有“用户协议/隐私政策/行为准则/举报/帮助”链接。
 - [ ] `privacy.html`、`terms.html`、`code-of-conduct.html`、`report.html`、`support.html` 可直接打开。
 - [ ] 断网重载能进入菜单；法律页离线可开。
-- [ ] Manifest 的 `start_url`、`scope`、图标、截图正确；Service Worker 为 v7。
+- [ ] Manifest 的 `start_url`、`scope`、图标、截图正确；Service Worker 为 v0.8.0。
 - [ ] PWABuilder 使用 GitHub Pages URL，不再用 tunnelmole。
 - [ ] 包内 Identity / Publisher / PublisherDisplayName 与 Partner Center 完全一致。
 - [ ] 包内 fallback/start URL 是 GitHub Pages；无 `tunnelmole.net`。

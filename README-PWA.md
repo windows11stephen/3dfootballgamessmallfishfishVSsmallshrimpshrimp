@@ -1,4 +1,4 @@
-# zhuj杯 2026 · PWA 部署与商店包说明
+# 鱼虾游戏足球大战 · PWA 部署与商店包说明
 
 独立、非官方 3D 足球游戏。支持 11v11、3v3、联机、排位、100 关挑战；可安装为 PWA，也可通过 Microsoft Store 分发 Windows 版。
 
@@ -9,7 +9,7 @@
 | `index.html` | 游戏主页 / 主菜单 / 全部玩法 |
 | `ranking.html` | 公开排位总榜 |
 | `manifest.webmanifest` | PWA 清单：名称、图标、截图、启动方式 |
-| `sw.js` | Service Worker：离线缓存，当前 `zhuj-cup-2026-v7` |
+| `sw.js` | Service Worker：离线缓存，当前 `zhuj-cup-2026-v0.8.0` |
 | `js/three.min.js` | Three.js（MIT） |
 | `js/online.js` | WebRTC 联机 + 最小 MQTT 信令 |
 | `js/pwa.js` | 注册 Service Worker、安装按钮 |
@@ -53,8 +53,8 @@ python -m http.server 4173
 2. PWABuilder → Package for Stores → Windows → Generate Package。
 3. 上传 `icons/icon-1024.png`（无脸 VS 图标）。
 4. 下载 ZIP，取：
-   - `zhuj杯 2026.msixbundle`
-   - `zhuj杯 2026.classic.appxbundle`
+   - `鱼虾游戏足球大战.msixbundle`
+   - `鱼虾游戏足球大战.classic.appxbundle`
 5. 在 Partner Center → Packages 上传这两个包。
 6. 填 Store listing、隐私/支持 URL、IARC 年龄分级、审核备注，提交认证。
 

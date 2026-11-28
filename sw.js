@@ -1,6 +1,6 @@
-/* zhuj杯 2026 PWA service worker
+/* 鱼虾游戏足球大战 PWA service worker
    静态资源优先缓存；页面导航网络优先，断网时回退到缓存。 */
-const CACHE_NAME = 'zhuj-cup-2026-v7';
+const CACHE_NAME = 'zhuj-cup-2026-v0.8.0';
 const PRECACHE = [
   './',
   './index.html',
@@ -66,7 +66,7 @@ self.addEventListener('fetch', event => {
         const hit = await caches.match(req, { ignoreSearch: true });
         if (hit) return hit;
         return (await caches.match('./index.html')) ||
-          new Response('zhuj杯 2026 当前离线，请联网后重试。', {
+          new Response('鱼虾游戏足球大战 当前离线，请联网后重试。', {
             status: 503,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' }
           });

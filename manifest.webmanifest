@@ -1,14 +1,20 @@
 {
   "id": "./index.html",
-  "name": "zhuj杯 2026",
-  "short_name": "zhuj杯 2026",
+  "name": "鱼虾游戏足球大战",
+  "short_name": "鱼虾游戏足球大战",
   "version": "0.8.0",
-  "description": "非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。",
+  "description": "鱼虾游戏足球大战（zhuj杯）：非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。",
   "lang": "zh-CN",
   "dir": "ltr",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": [
+    "standalone"
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "orientation": "landscape",
   "background_color": "#0a0e16",
   "theme_color": "#0a0e16",
@@ -88,7 +94,7 @@
       "sizes": "585x675",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "zhuj杯 2026 游戏画面"
+      "label": "鱼虾游戏足球大战 游戏画面"
     }
   ],
   "prefer_related_applications": false
