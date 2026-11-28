@@ -3,11 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>zhuj杯 2026 · 3D 世界杯 V8.0.0</title>
+<meta name="application-name" content="zhuj杯 2026 足球游戏">
+<meta name="description" content="zhuj杯 2026 足球冠军赛：非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。">
+<meta name="theme-color" content="#0a0e16">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="zhuj杯 2026">
+<meta name="format-detection" content="telephone=no,address=no,email=no">
+<meta name="msapplication-TileColor" content="#0a0e16">
+<meta name="msapplication-TileImage" content="icons/icon-144-noface.png">
+<title>zhuj杯 2026 · 3D 足球游戏 V0.8.0</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32-noface.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192-noface.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-noface.png">
 <style>
   :root{
-    --wc-red:#e30613; --wc-darkred:#a30a12; --wc-gold:#e8b93c; --wc-white:#ffffff;
-    --wc-black:#0d0f14; --wc-navy:#101b2b; --wc-blue:#2fa9ff; --wc-red2:#ff5a5a;
+    --brand-red:#e30613; --brand-darkred:#a30a12; --brand-gold:#e8b93c; --brand-white:#ffffff;
+    --brand-black:#0d0f14; --brand-navy:#101b2b; --brand-blue:#2fa9ff; --brand-red2:#ff5a5a;
   }
   * { margin:0; padding:0; box-sizing:border-box; font-family:"Microsoft YaHei","PingFang SC",sans-serif; }
   html,body { width:100%; height:100%; overflow:hidden; background:#0a0e16; color:#eaf2ff; }
@@ -17,24 +33,24 @@
   .hud { position:absolute; pointer-events:none; user-select:none; }
   #scoreboard { top:12px; left:50%; transform:translateX(-50%); text-align:center; z-index:20; }
   #sb-card { display:flex; align-items:center; gap:14px; background:linear-gradient(180deg,#12161f 0%,#0d1017 100%);
-    border:1px solid rgba(255,255,255,.16); border-top:3px solid var(--wc-red);
+    border:1px solid rgba(255,255,255,.16); border-top:3px solid var(--brand-red);
     border-radius:14px; padding:8px 22px 10px; box-shadow:0 8px 30px rgba(0,0,0,.6); backdrop-filter:blur(6px); }
-  #tournament-tag { font-size:11px; font-weight:800; letter-spacing:3px; color:var(--wc-gold);
+  #tournament-tag { font-size:11px; font-weight:800; letter-spacing:3px; color:var(--brand-gold);
     margin-bottom:2px; text-shadow:0 1px 6px rgba(0,0,0,.6); }
   #sb-card .teamname { font-size:21px; font-weight:900; letter-spacing:1px; display:flex; align-items:center; gap:6px;
                          white-space:nowrap; flex:0 0 auto; }
   #sb-card .badge { font-size:20px; }
   #scoreboard .score { font-size:36px; font-weight:900; color:#fff; min-width:42px; text-align:center;
     font-family:"Arial Black",sans-serif; text-shadow:0 0 16px rgba(232,185,60,.5); }
-  #scoreboard .vs { font-size:15px; font-weight:700; color:var(--wc-gold); }
-  #teamA-name { color:var(--wc-blue); } #teamB-name { color:var(--wc-red2); }
+  #scoreboard .vs { font-size:15px; font-weight:700; color:var(--brand-gold); }
+  #teamA-name { color:var(--brand-blue); } #teamB-name { color:var(--brand-red2); }
   #clock { top:14px; right:20px; background:linear-gradient(180deg,#12161f,#0d1017); border:1px solid rgba(255,255,255,.14);
-    border-top:3px solid var(--wc-gold); border-radius:12px; padding:8px 16px; font-size:24px; font-weight:800; letter-spacing:2px; color:#fff;
+    border-top:3px solid var(--brand-gold); border-radius:12px; padding:8px 16px; font-size:24px; font-weight:800; letter-spacing:2px; color:#fff;
     font-family:"Arial Black",sans-serif; box-shadow:0 6px 20px rgba(0,0,0,.45); z-index:20; }
-  #half-label { top:64px; right:20px; font-size:12px; font-weight:700; letter-spacing:1px; color:var(--wc-gold); background:rgba(10,13,20,.8);
+  #half-label { top:64px; right:20px; font-size:12px; font-weight:700; letter-spacing:1px; color:var(--brand-gold); background:rgba(10,13,20,.8);
     padding:3px 10px; border-radius:8px; border:1px solid rgba(232,185,60,.35); z-index:20; }
   #minimap { top:16px; left:16px; width:230px; height:150px; background:rgba(10,13,20,.75);
-    border:1px solid rgba(255,255,255,.16); border-top:3px solid var(--wc-red); border-radius:12px; padding:6px; z-index:20; }
+    border:1px solid rgba(255,255,255,.16); border-top:3px solid var(--brand-red); border-radius:12px; padding:6px; z-index:20; }
   #minimap canvas { width:100%; height:100%; border-radius:8px; }
   #controls-hint { bottom:16px; left:16px; background:rgba(10,13,20,.78); border:1px solid rgba(255,255,255,.16);
     border-radius:12px; padding:12px 16px; font-size:13px; line-height:1.9; color:#cfd8e6; max-width:330px; z-index:20; }
@@ -47,9 +63,19 @@
   #btn-mute { right:138px; }
   #btn-cam { right:268px; }
   #btn-restart { right:16px; }
-  #btn-mute:hover,#btn-restart:hover,#btn-cam:hover { border-color:var(--wc-red); color:#fff; }
+  #btn-mute:hover,#btn-restart:hover,#btn-cam:hover { border-color:var(--brand-red); color:#fff; }
   #active-info { top:176px; left:16px; font-size:13px; font-weight:700; color:#ffe9c2; background:rgba(10,13,20,.78);
     border:1px solid rgba(232,185,60,.35); border-radius:10px; padding:6px 12px; z-index:20; }
+  #stamina-hud { top:212px; left:16px; display:flex; align-items:center; gap:7px; z-index:20;
+    background:rgba(10,13,20,.78); border:1px solid rgba(232,185,60,.28); border-radius:9px;
+    padding:5px 10px; font-size:11px; font-weight:700; color:#dfeaff; }
+  #stamina-track { width:118px; height:7px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.13);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.08); }
+  #stamina-fill { width:100%; height:100%; border-radius:4px; background:linear-gradient(90deg,#45d58b,#bdf56a);
+    transition:width .12s linear, background .2s; }
+  #stamina-hud.low #stamina-fill { background:linear-gradient(90deg,#ff8b4d,#ffd35a); }
+  #stamina-hud.cool #stamina-fill { background:linear-gradient(90deg,#ff5d5d,#ff9b6b); }
+  #stamina-state { color:#ffd35a; min-width:26px; }
 
   /* ---------- Overlays ---------- */
   .overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -139,9 +165,9 @@
   .rk-row.me { box-shadow:inset 0 0 0 2px rgba(92,200,255,.55); }
   .rk-empty { font-size:12px; color:#8d9a86; text-align:center; padding:14px 0; }
 
-  #wc-trophy { font-size:70px; line-height:1; margin-bottom:6px; filter:drop-shadow(0 6px 24px rgba(232,185,60,.5)); }
+  #brand-trophy { font-size:70px; line-height:1; margin-bottom:6px; filter:drop-shadow(0 6px 24px rgba(232,185,60,.5)); }
   #menu-title { font-size:60px; font-weight:900; letter-spacing:8px;
-    background:linear-gradient(90deg,#fff 0%,var(--wc-red) 35%,var(--wc-gold) 75%,#fff 100%);
+    background:linear-gradient(90deg,#fff 0%,var(--brand-red) 35%,var(--brand-gold) 75%,#fff 100%);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
     margin-bottom:4px; filter:drop-shadow(0 4px 18px rgba(227,6,19,.4)); }
   #menu-sub { font-size:16px; color:#c9b78f; letter-spacing:4px; margin-bottom:28px; }
@@ -166,26 +192,31 @@
   .face-strip .cap { color:#8fb7dd; font-size:12px; text-align:center; margin-top:6px; }
 
   .btn-primary { pointer-events:auto; cursor:pointer; font-size:22px; font-weight:800; letter-spacing:4px; color:#fff;
-    background:linear-gradient(135deg,var(--wc-red),#ff5a3c); border:none; border-radius:16px; padding:16px 58px;
+    background:linear-gradient(135deg,var(--brand-red),#ff5a3c); border:none; border-radius:16px; padding:16px 58px;
     box-shadow:0 10px 34px rgba(227,6,19,.45); transition:.2s; }
   .btn-primary:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 14px 44px rgba(227,6,19,.6); }
 
   #controls-info { margin-top:24px; font-size:14px; color:#a9c9e8; line-height:2; text-align:center; }
   #controls-info .key { display:inline-block; background:rgba(227,6,19,.16); border:1px solid rgba(227,6,19,.4);
     border-radius:5px; padding:0 7px; font-family:"Consolas",monospace; }
+  #legal-note { margin-top:9px; font-size:10px; color:#7f8ea8; letter-spacing:.5px; text-align:center; opacity:.8; }
+#legal-links { margin-top:5px; display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:11px; }
+#legal-links a { color:#9fc9ff; text-decoration:none; padding:2px 3px; }
+#legal-links a:hover { color:#ffd24a; text-decoration:underline; }
+#legal-links .sep { color:#53647d; }
 
   #banner { position:absolute; top:22%; left:50%; transform:translateX(-50%); text-align:center; z-index:40; pointer-events:none; width:100%; }
   #banner .big { font-size:64px; font-weight:900; letter-spacing:6px; color:#fff; text-shadow:0 0 30px rgba(227,6,19,.8),0 6px 40px rgba(0,0,0,.6); opacity:0; transition:opacity .3s; }
-  #banner .sub { font-size:22px; font-weight:700; color:var(--wc-gold); margin-top:8px; opacity:0; transition:opacity .3s; }
+  #banner .sub { font-size:22px; font-weight:700; color:var(--brand-gold); margin-top:8px; opacity:0; transition:opacity .3s; }
 
   #end-panel .final { font-size:54px; font-weight:900; letter-spacing:4px; margin-bottom:14px; text-align:center; color:#fff; }
-  #end-panel .msg { font-size:22px; color:var(--wc-gold); margin-bottom:30px; text-align:center; }
+  #end-panel .msg { font-size:22px; color:var(--brand-gold); margin-bottom:30px; text-align:center; }
   #end-panel .btn-primary { margin-top:10px; }
   #end-log { margin-bottom:22px; max-height:150px; overflow:auto; font-size:15px; line-height:1.9; color:#dfe9ff; text-align:center; }
 
   #banner { position:absolute; top:38%; left:50%; transform:translateX(-50%); text-align:center; z-index:40; pointer-events:none; width:100%; }
   #banner .big { font-size:64px; font-weight:900; letter-spacing:6px; color:#fff; text-shadow:0 0 30px rgba(227,6,19,.8),0 6px 40px rgba(0,0,0,.6); opacity:0; transition:opacity .3s; }
-  #banner .sub { font-size:22px; font-weight:700; color:var(--wc-gold); margin-top:8px; opacity:0; transition:opacity .3s; }
+  #banner .sub { font-size:22px; font-weight:700; color:var(--brand-gold); margin-top:8px; opacity:0; transition:opacity .3s; }
 
   .diff-row { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin:0 0 14px; }
   .online-row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px 0 2px; }
@@ -213,10 +244,10 @@
   #keys-box { max-height:calc(100vh - 24px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .diff-btn { pointer-events:auto; cursor:pointer; font-size:16px; font-weight:800; letter-spacing:2px; color:#eaf2ff;
     background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.22); border-radius:14px; padding:12px 22px; transition:.2s; }
-  .diff-btn:hover { transform:translateY(-3px); border-color:var(--wc-gold); }
+  .diff-btn:hover { transform:translateY(-3px); border-color:var(--brand-gold); }
   /* ---- 矮窗口自动紧凑（只调菜单排版，不动游戏） ---- */
   @media (max-height: 820px){
-    #wc-trophy { font-size:40px; margin-bottom:2px; }
+    #brand-trophy { font-size:40px; margin-bottom:2px; }
     #menu-title { font-size:42px; margin-bottom:2px; }
     #menu-sub { font-size:13px; margin-bottom:14px; letter-spacing:2px; }
     .team-cards { gap:18px; margin-bottom:14px; }
@@ -235,13 +266,13 @@
     #controls-info { margin-top:10px; font-size:11px; line-height:1.6; }
   }
   @media (max-height: 640px){
-    #wc-trophy { font-size:30px; }
+    #brand-trophy { font-size:30px; }
     #menu-title { font-size:32px; }
     #menu-sub { display:none; }
     .team-card .tball { display:none; }
     #controls-info { display:none; }
   }
-  .diff-btn.selD { background:linear-gradient(135deg,var(--wc-red),#ff5a3c); border-color:transparent; color:#fff;
+  .diff-btn.selD { background:linear-gradient(135deg,var(--brand-red),#ff5a3c); border-color:transparent; color:#fff;
     box-shadow:0 8px 26px rgba(227,6,19,.45); }
 
   #commentary { bottom:150px; left:50%; transform:translateX(-50%); font-size:17px; font-weight:700; color:#fff;
@@ -251,12 +282,12 @@
     border:1px solid rgba(232,185,60,.3); border-radius:10px; padding:6px 12px; z-index:20; text-align:right; line-height:1.7; }
   #stats b { color:#fff; }
   #btn-skip-replay { position:fixed; bottom:150px; right:24px; pointer-events:auto; cursor:pointer; background:rgba(10,13,20,.85);
-    border:1px solid var(--wc-gold); color:#ffe9c2; border-radius:12px; padding:8px 16px; font-size:14px; font-weight:700; z-index:22; }
+    border:1px solid var(--brand-gold); color:#ffe9c2; border-radius:12px; padding:8px 16px; font-size:14px; font-weight:700; z-index:22; }
   #btn-night { bottom:16px; right:398px; }
   #squad-panel { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:60; background:rgba(4,6,10,.82); }
   #squad-box { width:min(92vw,760px); max-height:82vh; overflow:auto; background:linear-gradient(160deg,#131a2a,#0b0f18);
     border:1px solid rgba(232,185,60,.4); border-radius:20px; padding:26px 30px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
-  #squad-box h2 { font-size:24px; letter-spacing:3px; color:var(--wc-gold); margin-bottom:14px; }
+  #squad-box h2 { font-size:24px; letter-spacing:3px; color:var(--brand-gold); margin-bottom:14px; }
   #squad-box table { width:100%; border-collapse:collapse; margin-bottom:18px; }
   #squad-box td { padding:5px 10px; font-size:15px; border-bottom:1px solid rgba(255,255,255,.08); }
   #squad-box .sqA td:nth-child(3) { color:#7fd4ff; } #squad-box .sqB td:nth-child(3) { color:#ff9d9d; }
@@ -279,7 +310,7 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
     touch-action:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.45); }
   .tbtn .ic { font-size:23px; line-height:1; }
-  .tbtn.pressed { transform:translate(var(--tdx,0px), var(--tdy,0px)) scale(.9); border-color:var(--wc-gold); background:rgba(227,6,19,.6); }
+  .tbtn.pressed { transform:translate(var(--tdx,0px), var(--tdy,0px)) scale(.9); border-color:var(--brand-gold); background:rgba(227,6,19,.6); }
   /* 按钮在网格里是 static，给 left/top 不会动；拖拽位移统一用 --tdx/--tdy 记，布局不塌 */
   .tbtn, #t-shoot { transform:translate(var(--tdx,0px), var(--tdy,0px)); }
   #t-shoot.pressed { transform:translate(var(--tdx,0px), var(--tdy,0px)) scale(.9); }
@@ -320,7 +351,7 @@
   #ja-r { right:8px; top:50%; transform:translateY(-50%); }
   .touch-mode #minimap { width:220px; height:146px; }
   .touch-mode #btn-zone { gap:14px; padding:18px; }
-  .touch-mode #t-pause { border-color:var(--wc-gold); background:rgba(30,40,60,.78); }
+  .touch-mode #t-pause { border-color:var(--brand-gold); background:rgba(30,40,60,.78); }
   #mode-switch { position:fixed; right:max(12px, env(safe-area-inset-right,0px));
     bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:72; pointer-events:auto; cursor:pointer;
     background:rgba(10,13,20,.88); border:1px solid rgba(255,255,255,.28); color:#eaf2ff; border-radius:12px;
@@ -371,6 +402,7 @@
   /* 触屏 HUD 重新排布：不再互相压住 */
   .touch-mode #minimap { top: max(8px, env(safe-area-inset-top, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); }
   .touch-mode #active-info { top: calc(env(safe-area-inset-top, 0px) + 152px); left: max(8px, env(safe-area-inset-left, 0px)); }
+  .touch-mode #stamina-hud { top: calc(env(safe-area-inset-top, 0px) + 190px); left: max(8px, env(safe-area-inset-left, 0px)); }
   .touch-mode #stats { top: calc(env(safe-area-inset-top, 0px) + 96px); right: max(8px, env(safe-area-inset-right, 0px)); }
   .touch-mode #net-badge { top: calc(env(safe-area-inset-top, 0px) + 140px); right: max(8px, env(safe-area-inset-right, 0px)); }
   .touch-mode #commentary { bottom: calc(var(--tbtn-big) + 34px); max-width: 76%; font-size: 15px; }
@@ -384,6 +416,7 @@
   @media (max-height: 480px) {
     .touch-mode #minimap { width: clamp(116px, 22vw, 150px); height: clamp(78px, 14.5vw, 100px); }
     .touch-mode #active-info { top: calc(env(safe-area-inset-top, 0px) + 116px); font-size: 12px; }
+    .touch-mode #stamina-hud { top: calc(env(safe-area-inset-top, 0px) + 150px); font-size: 11px; }
     .touch-mode #stats { top: calc(env(safe-area-inset-top, 0px) + 78px); font-size: 12px; }
     .touch-mode #net-badge { top: calc(env(safe-area-inset-top, 0px) + 118px); font-size: 11px; }
   }
@@ -478,7 +511,7 @@
 
 <!-- HUD -->
 <div id="scoreboard" class="hud">
-  <div id="tournament-tag">🏆 zhuj杯 2026 · 世界杯 <span style="font-size:10px;opacity:.75">V8.0.0</span></div>
+  <div id="tournament-tag">🏆 zhuj杯 2026 · 足球冠军赛 <span style="font-size:10px;opacity:.75">V0.8.0</span></div>
   <div id="sb-card">
     <span id="teamA-name" class="teamname"><span class="badge">🐟</span>小鱼鱼</span>
     <span id="scoreA" class="score">0</span>
@@ -504,6 +537,7 @@
   <button id="btn-night" class="hud">🌙 夜场</button>
 </div>
 <div id="active-info" class="hud">▶ 你操控：#10 前锋</div>
+<div id="stamina-hud" class="hud"><span class="slabel">体力</span><div id="stamina-track"><div id="stamina-fill"></div></div><span id="stamina-state"></span></div>
 <div id="net-badge" class="hud">🌐 联机</div>
 <div id="commentary" class="hud"></div>
 <div id="stats" class="hud"></div>
@@ -537,9 +571,9 @@
 <!-- Menu overlay -->
 <div id="level-hud" class="hidden"></div>
 <div id="menu" class="overlay">
-  <div id="wc-trophy">🏆</div>
+  <div id="brand-trophy">🏆</div>
   <div id="menu-title">zhuj杯 2026</div>
-  <div id="menu-sub">2026 世界杯 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11v11 / 3v3 · 100 关挑战 · V8</div>
+  <div id="menu-sub">2026 足球冠军赛 · 🐟 小鱼鱼 VS 🦐 小虾虾 · 11v11 / 3v3 · 100 关挑战 · V0.8.0</div>
   <div class="team-cards">
     <div id="cardA" class="team-card selA" onclick="selectTeam(0)">
       <div class="flag">🐟</div>
@@ -573,9 +607,18 @@
     <button class="diff-btn" onclick="openKeys()">⌨️ 键位</button>
   </div>
   <button id="btn-start" class="btn-primary" onclick="startStandardGame()">⚽ 开 始 比 赛</button>
+  <button id="btn-install" class="diff-btn" type="button" style="display:none;margin:10px auto 0;padding:9px 22px;font-size:14px">📲 安装到本机</button>
   <div id="controls-info">
     <span class="key">W A S D</span> 移动　<span class="key">Shift</span> 加速　<span class="key">空格</span> 射门　
     <span class="key">K</span> 传球　<span class="key">Tab</span> 切换球员　<span class="key">P</span> 暂停
+  </div>
+  <div id="legal-note">非官方独立足球游戏 · 与任何官方赛事、协会或品牌无关联</div>
+  <div id="legal-links" aria-label="法律与帮助">
+    <a href="terms.html">用户协议</a><span class="sep">·</span>
+    <a href="privacy.html">隐私政策</a><span class="sep">·</span>
+    <a href="code-of-conduct.html">行为准则</a><span class="sep">·</span>
+    <a href="report.html">举报与申诉</a><span class="sep">·</span>
+    <a href="support.html">帮助</a>
   </div>
 </div>
 
@@ -600,7 +643,7 @@
 <div id="online-panel" class="overlay hidden">
   <div id="online-box">
     <h2>🌐 联机对战</h2>
-    <div class="sub">无需自建服务器 · WebRTC 直连（P2P）· 低延迟<br>房主创建房间 → 把 4 位房号发给朋友 → 朋友输入房号加入</div>
+    <div class="sub">无需自建服务器 · WebRTC 直连（P2P）· 低延迟<br>房主创建房间 → 把 4 位房号发给朋友 → 朋友输入房号加入<br><span style="font-size:11px;color:#9fc9ff">进入联机即表示同意 <a href="code-of-conduct.html" target="_blank" style="color:#ffd24a">《行为准则》</a>；遇到违规请 <a href="report.html?type=online" target="_blank" style="color:#ffd24a">举报</a>。</span></div>
     <div class="on-row" style="justify-content:center;gap:10px">
       <button id="mode-11" class="on-btn primary" style="flex:1" onclick="setOnlineMode(11)">11v11 标准</button>
       <button id="mode-3" class="on-btn" style="flex:1" onclick="setOnlineMode(3)">3v3 小队</button>
@@ -624,6 +667,7 @@
     <div class="on-row" style="margin-top:14px">
       <button class="on-btn" onclick="closeOnline()">返回</button>
       <button class="on-btn" onclick="netExitRoom()">退出联机</button>
+      <a href="report.html?type=online" target="_blank" class="on-btn" style="text-decoration:none;text-align:center">🚩 举报</a>
     </div>
   </div>
 </div>
@@ -632,7 +676,7 @@
 <div id="rank-panel" class="overlay hidden">
   <div id="rank-box">
     <h2>🏅 排位赛</h2>
-    <div class="sub">固定规则：小鱼鱼队 · 排位配平（对手略降、补强我方防守 AI）· 全场约 3 分钟<br>得分 = 进球 × 100 + 净胜球 × 10（净胜球为负按 0 计）</div>
+    <div class="sub">固定规则：小鱼鱼队 · 排位配平（对手略降、补强我方防守 AI）· 全场约 3 分钟<br>得分 = 进球 × 100 + 净胜球 × 10（净胜球为负按 0 计）<br><span style="font-size:11px;color:#9fc9ff">榜单公开，请勿使用真实个人信息作为昵称；违规内容可 <a href="report.html?type=online" target="_blank" style="color:#ffd24a">举报</a>。</span></div>
     <div class="rank-line"><span style="font-size:13px;color:#ffe9a8;white-space:nowrap">昵称</span>
       <input id="rank-nick" maxlength="10" placeholder="你的昵称"></div>
     <div class="rank-line">
@@ -707,11 +751,11 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/three.min.js"></script>
 <script>
 /* ============================================================
- *  zhuj杯 2026 · 3D 世界杯
- *  2026 世界杯风格 · 11v11 · AI 对手自动跑位/传球/射门
+ *  zhuj杯 2026 · 3D 足球冠军赛
+ *  2026 足球冠军赛风格 · 11v11 · AI 对手自动跑位/传球/射门
  *  玩家键盘操控 · 5 张人像建模 · 小鱼鱼 vs 小虾虾
  * ============================================================ */
 
@@ -721,6 +765,11 @@ const FIELD_W = 105, FIELD_H = 68, HALF_W = 52.5, HALF_H = 34;
 const GOAL_W = 7.32, GOAL_H = 2.44, GOAL_D = 2.4;
 const BALL_R = 0.34, PICKUP_R = 1.55, GRAVITY = 22, BALL_FRICTION = 0.55;
 const WALK_SPD = 7.9, SPRINT_SPD = 11.5;
+// 体力：冲刺消耗、停下恢复；耗尽后进入短冷却，期间只能走路
+const STAMINA_DRAIN = 0.34;      // 每秒冲刺消耗（满体力约 3 秒）
+const STAMINA_REGEN = 0.22;      // 每秒恢复
+const STAMINA_COOLDOWN = 1.0;    // 耗尽后的恢复冷却
+const STAMINA_MIN_SPRINT = 0.10; // 低于这个值不能起速
 // —— 难度平衡（zhuj杯 2026 版：AI 有威胁但玩家完全能赢）——
 let AI_SPRINT = 10.4;            // AI 冲刺速度（简单 10.4 / 困难 11.8）
 let AI_TACKLE_CHANCE = 0.16;     // AI 防守抢断成功率
@@ -786,6 +835,20 @@ scene.add(fill);
 function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
 function lerp(a,b,t){ return a+(b-a)*t; }
 function dist2D(x1,z1,x2,z2){ const dx=x2-x1, dz=z2-z1; return Math.hypot(dx,dz); }
+function canPlayerSprint(p){
+  return !!p && p.stamina > STAMINA_MIN_SPRINT && p.staminaCd <= 0;
+}
+function tickPlayerStamina(p, dt, sprinting){
+  if(!p) return;
+  if(p.staminaCd > 0) p.staminaCd = Math.max(0, p.staminaCd - dt);
+  if(sprinting){
+    const before = p.stamina;
+    p.stamina = Math.max(0, p.stamina - STAMINA_DRAIN * dt);
+    if(before > 0 && p.stamina <= 0) p.staminaCd = STAMINA_COOLDOWN;
+  } else {
+    p.stamina = Math.min(1, p.stamina + STAMINA_REGEN * dt);
+  }
+}
 function makeCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
 function texFromCanvas(c){ const t=new THREE.CanvasTexture(c); t.anisotropy=8; return t; }
 
@@ -809,7 +872,7 @@ function buildPitchTexture(){
   g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 4; g.setLineDash([]);
   g.strokeRect(X(-HALF_W), Z(-HALF_H), FIELD_W/FIELD_W*c.width, FIELD_H/FIELD_H*c.height);
   g.beginPath(); g.moveTo(X(0), Z(-HALF_H)); g.lineTo(X(0), Z(HALF_H)); g.stroke();
-  // 中圈：外圈白色 + 内圈红金世界杯配色
+  // 中圈：外圈白色 + 内圈红金冠军赛配色
   g.beginPath(); g.arc(X(0), Z(0), 9.15/FIELD_H*c.height, 0, Math.PI*2); g.stroke();
   g.beginPath(); g.arc(X(0), Z(0), 7.6/FIELD_H*c.height, 0, Math.PI*2);
   g.strokeStyle = 'rgba(227,6,19,0.75)'; g.lineWidth = 2.5; g.stroke();
@@ -912,7 +975,7 @@ function buildBallTex(){
   const c=makeCanvas(512,512); const g=c.getContext('2d');
   // 白底
   g.fillStyle='#f7f9fb'; g.fillRect(0,0,512,512);
-  // 2026 世界杯风格：红/黑几何纹
+  // 2026 足球冠军赛风格：红/黑几何纹
   const cx=256, cy=256;
   const star = (n,r0,r1,rot)=>{
     g.beginPath();
@@ -924,7 +987,7 @@ function buildBallTex(){
     }
     g.closePath();
   };
-  // 中心黑色主星（类似世界杯会徽轮廓）
+  // 中心黑色主星（冠军赛会徽轮廓）
   g.fillStyle='#111318';
   star(8, 130, 178, 0); g.fill();
   // 红条环绕
@@ -945,7 +1008,7 @@ let standMat = null, standMats = [], wallMat = null, wallAdMat = null, roofMat2 
 let scrTex = null, scrTex3 = null;
 let adCanvas = null, adTexGlobal = null, adRollT = 0;
 let adTexList = [], adIdx = 0, adMatGlobal = null;
-let adItems = ['zhuj杯 2026','WORLD CUP 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
+let adItems = ['zhuj杯 2026','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
 let crowdFlash = 0;
 const crowdGuys = [];
 function paintScreen(){
@@ -955,7 +1018,7 @@ function paintScreen(){
   sg.fillStyle='#e30613'; sg.fillRect(0,0,640,8);
   sg.fillStyle='#ffffff'; sg.font='900 50px "Arial Black","Microsoft YaHei",sans-serif';
   sg.textAlign='center'; sg.textBaseline='middle';
-  sg.fillText(TOURNAMENT + ' · WORLD CUP', 320, 40);
+  sg.fillText(TOURNAMENT + ' · 足球冠军赛', 320, 40);
   sg.fillStyle='#e8b93c'; sg.font='700 25px "Microsoft YaHei",sans-serif';
   const sn = (G && G.score)? (TEAM_COLORS[0].name + ' ' + G.score[0] + '  :  ' + G.score[1] + ' ' + TEAM_COLORS[1].name) : (TEAM_COLORS[0].name + ' 🐟 VS 🦐 ' + TEAM_COLORS[1].name);
   sg.fillText(sn, 320, 68);
@@ -990,9 +1053,9 @@ function buildStadium(){
   const base = new THREE.Mesh(new THREE.BoxGeometry(FIELD_W+14, 1.2, FIELD_H+14), new THREE.MeshLambertMaterial({color:0x1d4028}));
   base.position.y = -0.75; base.receiveShadow = true; scene.add(base);
 
-  // 广告板围墙（2026 世界杯品牌，滚动显示；预绘制纹理，滚动零开销）
+  // 广告板围墙（赛事品牌，滚动显示；预绘制纹理，滚动零开销）
   adCanvas = makeCanvas(512,128);
-  adItems = ['zhuj杯 2026','WORLD CUP 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
+  adItems = ['zhuj杯 2026','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门'];
   paintAd();
   adMatGlobal = new THREE.MeshLambertMaterial({map: adTexList[0]});
   adTexList[0].repeat.set(4,1);   // 长带沿墙重复 4 次，offset 周期滚动无缝回绕
@@ -1101,7 +1164,7 @@ function buildStadium(){
     b.position.set(sx*(HALF_W-10), 0.6, sz*(HALF_H+3)); scene.add(b);
   });
 
-  // 场内电子记分大屏（世界杯赛场风格）——挂在一侧看台上方
+  // 场内电子记分大屏（足球冠军赛赛场风格）——挂在一侧看台上方
   scrTex = makeCanvas(640, 112);
   paintScreen();
   scrTex3 = new THREE.CanvasTexture(scrTex);
@@ -1113,7 +1176,7 @@ function buildStadium(){
   scrFrame.position.set(0, 21.5, -(HALF_H+33.4));
   scene.add(scrFrame);
 
-  // 四角角旗（红白世界杯配色）
+  // 四角角旗（红白冠军赛配色）
   const flagMat = new THREE.MeshLambertMaterial({color:0xe30613});
   const flagMatW = new THREE.MeshLambertMaterial({color:0xffffff});
   [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=>{
@@ -1130,7 +1193,7 @@ function buildStadium(){
     new THREE.MeshLambertMaterial({color:0x2a3544}));
   apron.rotation.x = -Math.PI/2; apron.position.y = -0.18; apron.receiveShadow = true; scene.add(apron);
   wallMat = new THREE.MeshLambertMaterial({color:0x232b36, side:THREE.DoubleSide});   // 下层素色围墙
-  wallAdMat = new THREE.MeshLambertMaterial({map: makeAdTex(['zhuj杯 2026','WORLD CUP 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门']), side:THREE.DoubleSide});
+  wallAdMat = new THREE.MeshLambertMaterial({map: makeAdTex(['zhuj杯 2026','FOOTBALL 26','⚽ GOAL!','🏆 2026','⚡ 闪电能量','☕ 冠军咖啡','🔥 火热开赛','🎯 精准射门']), side:THREE.DoubleSide});
   wallAdMat.map.wrapS = THREE.RepeatWrapping; wallAdMat.map.repeat.set(4,1); wallAdMat.map.anisotropy=8;
   const wallW = 3;
   const mkWall2 = (len, h, d, x, z, adH2)=>{
@@ -1328,6 +1391,9 @@ class Player {
     this.celebrateT = 0;               // 进球庆祝计时
     this.cut = (Math.random()-0.5)*14; // 带球偏好变向（让 AI 进攻线路更多样）
     this.diveT = 0;                    // 门将扑救动画计时
+    this.stamina = 1;                  // 体力（冲刺消耗，停下恢复）
+    this.staminaCd = 0;                // 体力耗尽后的短冷却
+    this.saveCd = 0;                   // 门将扑救后的短冷却
     this.updateMesh();
     scene.add(this.mesh);
   }
@@ -1462,6 +1528,7 @@ function resetPositions(kickoffTeam){
       );
       p.facing = p.side===0? 0 : Math.PI;
       p.velx=0; p.velz=0; p.owns=false;
+      p.saveCd=0;
       p.updateMesh();
     }
   }
@@ -1502,6 +1569,18 @@ function updateActive(){
   const roleName = {GK:'门将', DF:'后卫', MF:'中场', ST:'前锋'}[activePlayer.role] || '';
   const el = document.getElementById('active-info');
   if(el) el.textContent = '▶ 你操控：#' + (G.activeIdx+1) + ' ' + roleName;
+}
+function updateStaminaUI(){
+  const p = activePlayer;
+  const hud = document.getElementById('stamina-hud');
+  const fill = document.getElementById('stamina-fill');
+  const state = document.getElementById('stamina-state');
+  if(!p || !hud || !fill) return;
+  const v = Math.max(0, Math.min(1, p.stamina || 0));
+  fill.style.width = (v*100).toFixed(0) + '%';
+  hud.classList.toggle('low', v < 0.30);
+  hud.classList.toggle('cool', (p.staminaCd || 0) > 0);
+  if(state) state.textContent = (p.staminaCd || 0) > 0 ? '冷却' : (v < 0.30 ? '疲劳' : '');
 }
 
 // 切人那一下只判断“球是否真的在脚下”，不再把 1.55m 外、甚至滚到 3.5m 的球隔空吸过来。
@@ -1660,9 +1739,11 @@ function userMove(dt){
   if(keys['KeyS']||keys['ArrowDown']||keys['Numpad2']) dz += 1;
   if(keys['KeyA']||keys['ArrowLeft']||keys['Numpad4']) dx -= 1;
   if(keys['KeyD']||keys['ArrowRight']||keys['Numpad6']) dx += 1;
-  const sprint = keys['ShiftLeft']||keys['ShiftRight'];
-  const spd = sprint? SPRINT_SPD+USER_SPRINT_BOOST : WALK_SPD;   // 玩家冲刺更快，方便追防持球人
   const len = Math.hypot(dx,dz);
+  const wantSprint = keys['ShiftLeft']||keys['ShiftRight'];
+  const sprinting = wantSprint && len > 0 && canPlayerSprint(p);
+  tickPlayerStamina(p, dt, sprinting);
+  const spd = sprinting? SPRINT_SPD+USER_SPRINT_BOOST : WALK_SPD;
   if(len>0){
     G.idleT = 0;
     p.pos.x += dx/len*spd*dt;
@@ -1928,10 +2009,12 @@ function formationTarget(p){
   return {x:tx, z:tz};
 }
 function moveAI(p, target, dt, sprint, overrideSpd){
-  const spd = overrideSpd || (sprint? SPRINT_SPD : p.speed);
+  const wantSprint = !!sprint && canPlayerSprint(p);
+  const spd = wantSprint ? (overrideSpd || SPRINT_SPD) : p.speed;
   const dx=target.x-p.pos.x, dz=target.z-p.pos.z;
   const d=Math.hypot(dx,dz);
-  if(d<0.08){ p.velx=0; p.velz=0; return; }
+  if(d<0.08){ tickPlayerStamina(p, dt, false); p.velx=0; p.velz=0; return; }
+  tickPlayerStamina(p, dt, wantSprint);
   const step=Math.min(spd*dt, d);
   p.pos.x += dx/d*step; p.pos.z += dz/d*step;
   p.facing = Math.atan2(dz,dx);
@@ -1955,14 +2038,14 @@ function updateOpponentAI(team, dt){
       cands.push(p);
     }
     cands.sort((a,b)=> dist2D(a.pos.x,a.pos.z,ua.pos.x,ua.pos.z) - dist2D(b.pos.x,b.pos.z,ua.pos.x,ua.pos.z));
-    // 排位赛只派 1 人贴身；普通困难才双人包夹，避免排位里玩家一拿球就被两个人黏死。
-    cands.slice(0, G.rankMode ? 1 : (G.difficulty==='hard'?2:1)).forEach(p=> markers.add(p));
+    // 排位赛只派 1 人贴身；普通困难才双人包夹，噩梦三人围抢，避免玩家轻松出球。
+    cands.slice(0, G.rankMode ? 1 : (G.difficulty==='hard'?2:(G.difficulty==='nightmare'?3:1))).forEach(p=> markers.add(p));
   }
-  // 噩梦模式额外配合：只让 1 名前锋/中场前插接应，制造一个向前出球点；不堆人、不抢玩家操作感。
+  // 噩梦模式额外配合：让 2 名前锋/中场前插接应，制造更多向前出球点。
   if(G.difficulty==='nightmare' && chaser && chaser.owns){
     const supportCands = team.filter(q=>q!==chaser && (q.role==='ST' || q.role==='MF') && !markers.has(q) && !q.remoteCtl);
     supportCands.sort((a,b)=> (a.role==='ST'?0:1) - (b.role==='ST'?0:1));
-    supportCands.slice(0,1).forEach(q=> supportRuns.add(q));
+    supportCands.slice(0,2).forEach(q=> supportRuns.add(q));
   }
   for(const p of team){
     // 联机客机操控的球员：只认客机输入，AI 完全不碰（否则画面会两边各跑一套）
@@ -2021,13 +2104,13 @@ function updateOpponentAI(team, dt){
         if(p.decideT<=0){
           const nearEnemy = enemyNear(p, 1.5);      // 贴身防守
           const frontBlock = enemyInFront(p, 2.4);  // 正前方有人挡路
-          if(distGoal < AI_SHOOT_RANGE && (G.difficulty!=='easy' || G.oppPasses>=3) && Math.random() > (frontBlock? 0.6 : 0.2)){
-            // 射门（简单模式需先传 3 次；困难模式随时可射，且更准更远）
-            const spread = G.rankMode ? (1.1 + distGoal*0.16) : (G.difficulty==='hard'? 0.7+distGoal*0.12 : 1.6+distGoal*0.22);
+          if(distGoal < AI_SHOOT_RANGE && (G.difficulty!=='easy' || G.oppPasses>=3) && Math.random() > (frontBlock? (G.difficulty==='nightmare'?0.30:0.6) : 0.2)){
+            // 射门（简单模式需先传 3 次；困难/噩梦随时可射，噩梦更准更远）
+            const spread = G.rankMode ? (1.1 + distGoal*0.16) : (G.difficulty==='hard'? 0.7+distGoal*0.12 : (G.difficulty==='nightmare'? 0.45+distGoal*0.09 : 1.6+distGoal*0.22));
             const targetZ = (Math.random()<0.5?-1:1)*(1.2 + Math.random()*3.0) + (Math.random()-0.5)*spread;
             const loft = 1.2 + Math.random()*2.2;
-            shootToward(p, gx, targetZ, 24+Math.random()*4, loft);
-          } else if(((G.difficulty==='easy' && G.oppPasses<3 && distGoal<15) || (nearEnemy || frontBlock) || (G.difficulty==='nightmare' && Math.random()<0.18)) && Math.random()<0.85){
+            shootToward(p, gx, targetZ, 25+Math.random()*4, loft);
+          } else if(((G.difficulty==='easy' && G.oppPasses<3 && distGoal<15) || (nearEnemy || frontBlock) || (G.difficulty==='nightmare' && Math.random()<0.30)) && Math.random()<0.85){
             // 传球：到门前但不足 3 传被迫传导，或遇贴身/挡路（找空位前锋，无则回传保持控球）
             G.oppPasses++;
             let t = bestPassTarget(p, team);
@@ -2395,9 +2478,51 @@ function updateGKHold(dt){
   }
 }
 
+// 门线救命扑救：在进球判定之前执行，避免球一越过门线就直接算进球。
+// 双方门将都很高概率扑出，但每次扑救后进入冷却；冷却期间才可能被进球。
+function goalLineKeeperSave(b){
+  if(b.owner) return false;
+  const plus = b.pos.x > HALF_W - 1.2 && b.vel.x > 1;
+  const minus = b.pos.x < -HALF_W + 1.2 && b.vel.x < -1;
+  if(!plus && !minus) return false;
+  if(Math.abs(b.pos.z) > GOAL_W/2 + 0.6 || b.pos.y > GOAL_H + 0.3) return false;
+  const gkTeam = plus ? 1 : 0;
+  const gk = G.teams[gkTeam][0];
+  if(!gk || gk.saveCd > 0) return false;
+  const d = dist2D(gk.pos.x, gk.pos.z, b.pos.x, b.pos.z);
+  if(d > 3.7) return false;
+  if(Math.random() > 0.985) return false;
+
+  gk.saveCd = 1.05;
+  gk.diveT = 0.85;
+  b.wasShot = false;
+  b.passTarget = null;
+  b.pos.x = clamp(b.pos.x, -HALF_W + 0.18, HALF_W - 0.18);
+  if(b.speed < 15 && d < 1.5){
+    b.vel.x=0; b.vel.y=0; b.vel.z=0;
+    b.owner=gk; gk.owns=true;
+    gk.holdT = 0.38 + Math.random()*0.30;
+    sayComment('🧤 门线神扑！门将没收！');
+  } else {
+    const outX = (plus ? -1 : 1) * (7 + Math.random()*5);
+    const outZ = (b.pos.z - gk.pos.z) >= 0 ? 1 : -1;
+    b.vel.x = outX;
+    b.vel.z = outZ * (2.2 + Math.random()*2.6);
+    b.vel.y = 2.6 + Math.random()*1.6;
+    sayComment('🧤 门线神扑！门将把球挡出！');
+  }
+  sfx('kick');
+  return true;
+}
+
 // ---------------- 球物理 ----------------
 function updateBall(dt){
   const b = ball;
+  // 门将扑救冷却计时（双方都算）
+  for(const arr of G.teams){
+    const gk = arr && arr[0];
+    if(gk) gk.saveCd = Math.max(0, (gk.saveCd || 0) - dt);
+  }
   if(b.owner){
     const o = b.owner;
     const bx = o.pos.x + Math.cos(o.facing)*1.0;
@@ -2424,6 +2549,8 @@ function updateBall(dt){
     b.vel.x *= f; b.vel.z *= f;
   }
   b.speed = Math.hypot(b.vel.x, b.vel.z);
+  // 先给门将一次门线扑救机会；扑到/挡出后本帧不再判进球
+  if(goalLineKeeperSave(b)) return;
   // 边界 & 进球判定（出底线不算角球/犯规，只回弹；出边线判界外球）
   if(b.pos.x > HALF_W){
     if(Math.abs(b.pos.z) < GOAL_W/2 && b.pos.y < GOAL_H){ onGoal(0); return; }
@@ -2459,19 +2586,21 @@ function updateBall(dt){
       const goalX = towardPlus? HALF_W : -HALF_W;
       const dz = ball.pos.z - gk.pos.z;
       const isMyGK = gk.team === G.userTeam;
-      const step = Math.min((isMyGK? 20 : 12)*dt, Math.abs(dz));
+      const step = Math.min((isMyGK? 24 : 24)*dt, Math.abs(dz));
       gk.pos.z += Math.sign(dz)*step;
       gk.facing = ball.pos.x>gk.pos.x? 0 : Math.PI;
       gk.velx=0; gk.velz = Math.sign(dz)*step/Math.max(dt,0.001);
       clampPlayer(gk);
       const d = dist2D(gk.pos.x, gk.pos.z, ball.pos.x, ball.pos.z);
-      const reach = isMyGK? 2.10 : 1.50;
-      if(d < reach && b.speed < 24){
+      const reach = 3.20;
+      if(gk.saveCd <= 0 && d < reach && b.speed < 45){
         const easy = G.difficulty === 'easy';
-        const base = isMyGK ? 0.88 : (easy? 0.17 : (G.difficulty==='nightmare'? 0.40 : 0.29));
-        const close = isMyGK? 1.20 : 0.95;
-        const prob = d < close? base : base*0.55;
+        // 双方都大幅提高扑救率；噩梦更高，简单略低但仍明显高于旧版。
+        const base = easy ? 0.90 : (G.difficulty==='nightmare'? 0.985 : 0.96);
+        const close = 1.60;
+        const prob = d < close? base : base*0.82;
         if(Math.random() < prob){
+          gk.saveCd = 1.05;
           if(b.speed > 13){
             // 快球：门将大脚解围或扑向两侧
             b.owner=null; b.passTarget=null;
@@ -2774,6 +2903,9 @@ function startGame(){
   G.screenMsg = null; G.lastScreenKey = null;
   G.lastKickoff = G.userTeam;
   G.activeIdx = wantSize===3 ? 2 : 9;
+  for(const arr of G.teams){
+    for(const p of arr){ p.stamina=1; p.staminaCd=0; p.saveCd=0; }
+  }
   updateActive();
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('end').classList.add('hidden');
@@ -2818,12 +2950,12 @@ function skipReplay(){ if(G.state==='replay') G.stateT = 0.001; }
 function applyDifficulty(d){
   var rank = !!G.rankMode;
   if(d==='nightmare'){
-    // 噩梦：速度/抢断/射程全面拉满，配合跑位在 updateOpponentAI 里单独加强
-    AI_SPRINT = rank ? 11.5 : 12.2;
-    AI_TACKLE_CHANCE = rank ? 0.40 : 0.52;
-    AI_PICKUP_R = rank ? 1.42 : 1.55;
+    // 噩梦：速度/抢断/射程/逼抢全面加强；配合跑位在 updateOpponentAI 里单独加强
+    AI_SPRINT = rank ? 12.4 : 13.4;
+    AI_TACKLE_CHANCE = rank ? 0.50 : 0.68;
+    AI_PICKUP_R = rank ? 1.55 : 1.75;
     USER_SPRINT_BOOST = 2.25;
-    AI_SHOOT_RANGE = rank ? 17 : 19;
+    AI_SHOOT_RANGE = rank ? 18 : 22;
   } else if(d==='hard'){
     // 排位赛保留“困难”的对抗，但把对手的双人包夹/抢断/射门精度略降一档，
     // 避免比分差距被 AI 的数值碾压；普通困难模式仍是原来的强度。
@@ -3176,6 +3308,7 @@ function runFrame(dt){
   }
   ball.mesh.position.set(ball.pos.x, ball.pos.y, ball.pos.z);
   updateScoreboard();
+  updateStaminaUI();
   updateCamera(dt);
   drawMinimap();
   renderer.render(scene, camera);
@@ -3406,7 +3539,8 @@ window.addEventListener('load', ()=>{
   }, {passive:false});
 })();
 </script>
-<script src="js/online.js?v=20261127direct1"></script>
+<script src="js/online.js?v=20261127stamina1"></script>
+<script src="js/pwa.js" defer></script>
 <script>
 // ---------------- 自定义键位：只在输入层映射，不改游戏逻辑 ----------------
 (function(){
@@ -3645,12 +3779,25 @@ window.addEventListener('load', ()=>{
     return c==='<'?'&lt;': c==='>'?'&gt;': c==='&'?'&amp;':'&quot;'; }); }
   function msg(t, bad){ var m=el('rank-msg'); if(!m) return; m.textContent=t||''; m.style.color = bad? '#ff9d9d':'#ffe9a8'; }
   function season(){ return (window.RANK && RANK.season) ? RANK.season() : 'local'; }
+  // UGC 昵称统一清洗：去控制字符/零宽字符/HTML 特殊字符，阻断链接、邮箱和长数字串。
+  window.cleanNickname = function(raw){
+    var n = String(raw==null?'':raw);
+    try{ n = n.normalize('NFKC'); }catch(_){}
+    n = n.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e]/g,'')
+         .replace(/[<>&"']/g,'')
+         .replace(/https?:\/\/|www\./ig,'')
+         .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,'')
+         .replace(/\d{6,}/g,'')
+         .replace(/\s+/g,' ')
+         .trim()
+         .slice(0,10);
+    if(!n) n = '球员' + Math.floor(Math.random()*900+100);
+    return n;
+  };
   function nickname(){
     var i = el('rank-nick');
     var n = i ? String(i.value||'').trim() : '';
-    n = n.replace(/[<>&"']/g,'').slice(0,10);
-    if(!n){ try{ n = localStorage.getItem(NICK_KEY) || ''; }catch(_){} }
-    if(!n) n = '球员' + Math.floor(Math.random()*900+100);
+    n = window.cleanNickname(n);
     if(i) i.value = n;
     try{ localStorage.setItem(NICK_KEY, n); }catch(_){}
     return n;

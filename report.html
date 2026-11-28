@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0e16">
+<title>举报与申诉 · zhuj杯 2026</title>
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>举报与申诉</h1>
+      <div class="sub">zhuj杯 2026 · 联机、昵称、排行榜与侵权投诉</div>
+    </div>
+    <div class="small">生效日期：2026-11-28<br>版本：1.0</div>
+  </div>
+
+  <div class="nav">
+    <a class="btn gold" href="index.html">← 返回游戏</a>
+    <a class="btn" href="code-of-conduct.html">行为准则</a>
+    <a class="btn" href="privacy.html">隐私政策</a>
+    <a class="btn" href="terms.html">用户协议</a>
+    <a class="btn" href="support.html">帮助</a>
+  </div>
+
+  <div class="danger">
+    <b>请先阅读：</b>如果你或他人正面临人身危险、骚扰、诈骗或未成年人侵害，请优先联系当地紧急服务或公安机关，不要等待游戏内举报。请勿在举报中转发违法内容本身，也不要填写身份证、银行卡、密码、住址等敏感信息。
+  </div>
+
+  <p>本页面用于举报联机房间、昵称、排行榜记录中的不当内容，或对处理结果提出申诉，也可提交版权/商标/肖像权等侵权投诉。提交前请阅读<a href="code-of-conduct.html">行为准则</a>。虚假举报、批量举报或利用举报骚扰他人同样违反准则。</p>
+
+  <div class="card">
+    <p><b>推荐方式：</b>点击下方按钮生成一份结构化举报，并打开 GitHub Issues 提交页。GitHub Issue 是公开的；如果你需要私下沟通，请使用“复制举报内容”后发送邮件，不要在公开 Issue 中填写隐私。</p>
+    <p class="small">GitHub Issues 需要 GitHub 账号；没有账号也可以使用邮件方式。我们通常在 7 个工作日内回复。</p>
+  </div>
+
+  <form id="reportForm" autocomplete="off">
+    <div class="form-row">
+      <div>
+        <label for="rType">举报类型</label>
+        <select id="rType">
+          <option value="仇恨、歧视或骚扰">仇恨、歧视或骚扰</option>
+          <option value="隐私泄露或开盒">隐私泄露或开盒</option>
+          <option value="色情或未成年人保护">色情或未成年人保护</option>
+          <option value="作弊、刷分或漏洞">作弊、刷分或漏洞</option>
+          <option value="冒充官方或他人">冒充官方或他人</option>
+          <option value="版权、商标或肖像权">版权、商标或肖像权</option>
+          <option value="其他违规">其他违规</option>
+        </select>
+      </div>
+      <div>
+        <label for="rNick">被举报昵称 / 房间号 / 赛季</label>
+        <input id="rNick" maxlength="80" placeholder="例如：昵称“xxx”，房间 AB12，2026 赛季">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label for="rTime">发生时间</label>
+        <input id="rTime" maxlength="40" placeholder="例如：2026-11-28 20:15（北京时间）">
+      </div>
+      <div>
+        <label for="rContact">你的联系方式（可选）</label>
+        <input id="rContact" maxlength="80" placeholder="邮箱或其他联系方式；可留空">
+      </div>
+    </div>
+
+    <label for="rDesc">发生了什么</label>
+    <textarea id="rDesc" rows="6" maxlength="2000" placeholder="请客观描述：在哪个页面/房间、对方做了什么、影响了谁。不要粘贴违法内容本身，也不要填写他人隐私。"></textarea>
+
+    <label for="rEvidence">证据链接（可选）</label>
+    <input id="rEvidence" maxlength="500" placeholder="截图/录像的公开链接；不要在公开 Issue 中上传含隐私的原图">
+
+    <label for="rRights">如果是侵权投诉：你的权利证明</label>
+    <input id="rRights" maxlength="500" placeholder="权利人、作品/商标名称、登记号或授权链（可选）">
+
+    <div class="actions">
+      <button class="btn gold" type="button" id="btnIssue">打开 GitHub Issue（推荐）</button>
+      <button class="btn" type="button" id="btnCopy">复制举报内容</button>
+      <button class="btn" type="button" id="btnMail">用邮件发送</button>
+    </div>
+    <div id="copyMsg" role="status" aria-live="polite"></div>
+  </form>
+
+  <div class="card soft">
+    <h3>我们如何处理</h3>
+    <ul>
+      <li>核实举报内容与上下文，必要时联系被举报人或要求补充信息。</li>
+      <li>根据严重程度采取提醒、昵称过滤、移除榜单记录、限制联机或暂停功能。</li>
+      <li>涉及版权/商标/肖像权的投诉，我们会核对权利证明，并可能先隐藏相关内容再进一步处理。</li>
+      <li>处理完毕后通过你留下的联系方式回复；没有联系方式时，可能在原 Issue 中公开回复。</li>
+    </ul>
+    <p class="small">我们可能保留必要记录用于安全审计和重复问题处理，具体见<a href="privacy.html">隐私政策</a>第 4 节。</p>
+  </div>
+
+  <div class="card">
+    <h3>申诉</h3>
+    <p>如果你认为处理结果有误，请在同一 Issue 中回复，或新建 Issue 并标注“申诉”，提供原举报链接/编号、处理时间和需要复核的理由。请不要重复提交相同内容。</p>
+  </div>
+
+  <div class="footer">
+    <p>zhuj杯 2026 · 举报与申诉 v1.0 · 生效 2026-11-28</p>
+    <p><a href="index.html">返回游戏</a> · <a href="code-of-conduct.html">行为准则</a> · <a href="privacy.html">隐私政策</a> · <a href="terms.html">用户协议</a> · <a href="support.html">帮助</a></p>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var ISSUE_BASE = 'https://github.com/windows11stephen/3dfootballgamessmallfishfishVSsmallshrimpshrimp/issues/new';
+  var MAIL = 'windows11stephen@users.noreply.github.com';
+
+  function $(id){ return document.getElementById(id); }
+  function val(id){ var e=$(id); return e ? String(e.value||'').trim() : ''; }
+  function clean(s, max){ return String(s||'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0, max||2000); }
+
+  function reportId(){
+    var d=new Date();
+    function p(n){ return String(n).padStart(2,'0'); }
+    return 'ZJ-' + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
+  }
+
+  function build(){
+    var id = reportId();
+    var type = clean(val('rType'), 40);
+    var nick = clean(val('rNick'), 80);
+    var time = clean(val('rTime'), 40);
+    var contact = clean(val('rContact'), 80);
+    var desc = clean(val('rDesc'), 2000);
+    var evidence = clean(val('rEvidence'), 500);
+    var rights = clean(val('rRights'), 500);
+    var lines = [
+      '举报编号：' + id,
+      '举报类型：' + type,
+      '被举报昵称/房间号/赛季：' + (nick || '（未填写）'),
+      '发生时间：' + (time || '（未填写）'),
+      '你的联系方式（可选）：' + (contact || '（未填写）'),
+      '',
+      '发生了什么：',
+      desc || '（未填写）',
+      '',
+      '证据链接（可选）：' + (evidence || '（未填写）'),
+      '权利证明（仅侵权投诉）：' + (rights || '（未填写）'),
+      '',
+      '说明：这是通过游戏内举报页面生成的举报。请勿在公开 Issue 中填写身份证、银行卡、密码、住址、电话或他人隐私。'
+    ];
+    return { id:id, title:'[举报] ' + type + ' · ' + (nick || id), body:lines.join('\n') };
+  }
+
+  function openIssue(){
+    var b=build();
+    var url=ISSUE_BASE + '?title=' + encodeURIComponent(b.title) + '&body=' + encodeURIComponent(b.body);
+    window.open(url, '_blank', 'noopener');
+  }
+
+  function copyReport(){
+    var b=build();
+    var text=b.title + '\n\n' + b.body;
+    function done(){ var m=$('copyMsg'); if(m) m.textContent='已复制。你可以粘贴到邮件或 Issue 中。'; }
+    function fallback(){
+      var ta=document.createElement('textarea');
+      ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(_){ var m=$('copyMsg'); if(m) m.textContent='复制失败，请手动选择文本。'; }
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else { fallback(); }
+  }
+
+  function mailReport(){
+    var b=build();
+    var body=b.body.slice(0, 1800);
+    var url='mailto:' + MAIL + '?subject=' + encodeURIComponent(b.title) + '&body=' + encodeURIComponent(body);
+    window.location.href=url;
+  }
+
+  $('btnIssue').onclick=openIssue;
+  $('btnCopy').onclick=copyReport;
+  $('btnMail').onclick=mailReport;
+
+  try{
+    var q=new URLSearchParams(location.search);
+    var t=q.get('type');
+    if(t==='privacy'){ $('rType').value='隐私泄露或开盒'; }
+    if(t==='online'){ $('rType').value='仇恨、歧视或骚扰'; }
+    if(t==='ip'){ $('rType').value='版权、商标或肖像权'; }
+  }catch(_){}
+})();
+</script>
+</body>
+</html>

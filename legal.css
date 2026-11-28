@@ -1,0 +1,73 @@
+:root{
+  --bg:#070c15; --panel:rgba(16,24,38,.92); --panel2:rgba(22,33,52,.72);
+  --line:rgba(120,170,255,.22); --text:#eaf3ff; --dim:#96abc8;
+  --gold:#ffd24a; --green:#35e08a; --red:#ff7b7b; --blue:#8fc7ff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; min-height:100vh; color:var(--text);
+  background:
+    radial-gradient(1100px 620px at 50% -12%, rgba(40,100,190,.22), transparent 72%),
+    linear-gradient(180deg,#0a1220,#05080f 72%);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  line-height:1.8; -webkit-text-size-adjust:100%;
+}
+a{color:var(--blue);text-decoration:none;overflow-wrap:anywhere}
+a:hover{text-decoration:underline}
+.wrap{max-width:980px;margin:0 auto;padding:26px 20px 56px}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+h1{font-size:28px;line-height:1.35;letter-spacing:1px;margin:0;color:var(--gold)}
+h2{font-size:18px;line-height:1.5;margin:26px 0 8px;color:#dceaff}
+h3{font-size:15px;margin:18px 0 6px;color:#cfe2ff}
+p{margin:8px 0}
+ul,ol{margin:8px 0 8px 22px;padding:0}
+li{margin:5px 0}
+.sub{color:var(--dim);font-size:13px;margin:8px 0 18px}
+.badge{display:inline-block;font-size:12px;color:var(--gold);border:1px solid rgba(255,210,74,.45);
+  background:rgba(255,210,74,.08);border-radius:999px;padding:4px 10px;margin-right:6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:14px 0}
+.card.soft{background:var(--panel2)}
+.notice{border-left:3px solid var(--gold);background:rgba(255,210,74,.07);padding:12px 14px;border-radius:0 10px 10px 0;margin:16px 0}
+.danger{border-left:3px solid var(--red);background:rgba(255,90,90,.07);padding:12px 14px;border-radius:0 10px 10px 0;margin:16px 0}
+.ok{border-left:3px solid var(--green);background:rgba(53,224,138,.06);padding:12px 14px;border-radius:0 10px 10px 0;margin:16px 0}
+.small{font-size:12px;color:var(--dim)}
+.muted{color:var(--dim)}
+.nowrap{white-space:nowrap}
+.divider{height:1px;background:var(--line);margin:24px 0}
+.footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);color:#6f86a6;font-size:12px;text-align:center;line-height:2}
+.footer a{color:#9fc9ff}
+.nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 14px}
+.btn{display:inline-block;border:1px solid rgba(120,170,255,.45);background:rgba(60,120,220,.14);
+  color:#dbeaff;border-radius:10px;padding:8px 13px;font-size:13px;cursor:pointer}
+.btn:hover{background:rgba(60,120,220,.26);text-decoration:none}
+.btn.gold{border-color:rgba(255,210,74,.55);background:rgba(255,210,74,.13);color:var(--gold)}
+.btn.red{border-color:rgba(255,110,110,.5);background:rgba(255,80,80,.12);color:#ffc0c0}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+th,td{text-align:left;vertical-align:top;border-bottom:1px solid rgba(120,170,255,.13);padding:9px 8px}
+th{color:#bcd6f8;background:rgba(255,255,255,.02)}
+code{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:1px 5px;font-size:12px}
+input,select,textarea{width:100%;background:#0d1728;border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:9px 11px;font:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:rgba(255,210,74,.55)}
+label{display:block;font-size:13px;color:#cfe2ff;margin:12px 0 5px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+#copyMsg{color:var(--green);font-size:12px;min-height:18px}
+@media(max-width:720px){
+  .wrap{padding:18px 13px 40px}
+  h1{font-size:22px}
+  h2{font-size:16px}
+  .form-row{grid-template-columns:1fr}
+  table{font-size:12px}
+  th,td{padding:8px 6px}
+  .footer{text-align:left}
+}
+@media print{
+  body{background:#fff;color:#111}
+  .wrap{max-width:none;padding:0}
+  h1,h2,h3{color:#111}
+  .card,.notice,.danger,.ok{background:#fff;border-color:#bbb}
+  .nav,.footer{display:none}
+  a{color:#111}
+}

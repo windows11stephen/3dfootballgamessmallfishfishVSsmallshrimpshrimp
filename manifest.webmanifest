@@ -1,0 +1,95 @@
+{
+  "id": "./index.html",
+  "name": "zhuj杯 2026",
+  "short_name": "zhuj杯 2026",
+  "version": "0.8.0",
+  "description": "非官方独立 3D 足球游戏，支持 11v11、3v3、联机、排位与 100 关挑战。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0a0e16",
+  "theme_color": "#0a0e16",
+  "categories": [
+    "games",
+    "sports",
+    "entertainment"
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-72-noface.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-96-noface.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-144-noface.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192-noface.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-384-noface.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-noface.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-maskable-noface.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "store-assets/store-menu-1920x1080.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "主菜单：小鱼鱼 vs 小虾虾，11v11、3v3、联机、排位与 100 关挑战"
+    },
+    {
+      "src": "store-assets/store-match-1920x1080.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "11v11 比赛画面：球场、比分牌、体力与操作提示"
+    },
+    {
+      "src": "store-assets/store-levels-1920x1080.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "100 关挑战：固定关卡、随机挑战与皮肤解锁"
+    },
+    {
+      "src": "store-assets/gameplay-bg.png",
+      "sizes": "585x675",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "zhuj杯 2026 游戏画面"
+    }
+  ],
+  "prefer_related_applications": false
+}

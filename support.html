@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0e16">
+<title>帮助与支持 · zhuj杯 2026</title>
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>帮助与支持</h1>
+      <div class="sub">zhuj杯 2026 · 安装、离线、联机、榜单与数据</div>
+    </div>
+    <div class="small">版本：1.0<br>更新：2026-11-28</div>
+  </div>
+
+  <div class="nav">
+    <a class="btn gold" href="index.html">← 返回游戏</a>
+    <a class="btn" href="privacy.html">隐私政策</a>
+    <a class="btn" href="terms.html">用户协议</a>
+    <a class="btn" href="code-of-conduct.html">行为准则</a>
+    <a class="btn" href="report.html">举报与申诉</a>
+  </div>
+
+  <div class="ok">
+    <b>快速结论：</b>本游戏免费，无内购。网页版可安装为 PWA；Windows 版通过 Microsoft Store 安装。单机模式不需要联网；联机和排位需要能访问公共 MQTT/STUN 的网络。
+  </div>
+
+  <h2>常见问题</h2>
+
+  <div class="card">
+    <h3>1. 怎么安装到 Windows？</h3>
+    <p>从 Microsoft Store 搜索并安装「zhuj杯 2026」。安装后从开始菜单启动。首次启动需要能访问游戏的托管地址以下载页面资源；之后 Service Worker 会缓存核心文件，断网也能进入菜单和单机模式。</p>
+    <p>网页版也可以在浏览器地址栏点击“安装”或使用游戏菜单里的“📲 安装到本机”。</p>
+  </div>
+
+  <div class="card">
+    <h3>2. 断网能玩吗？</h3>
+    <p>可以进入菜单、调整设置和进行单机比赛。首次访问需要联网加载；联机、排位提交和排行榜刷新需要网络。若页面提示离线，请先联网打开一次，让缓存完成。</p>
+  </div>
+
+  <div class="card">
+    <h3>3. 联机连不上 / 房间没人 / 一直转圈？</h3>
+    <ul>
+      <li>确认双方都能访问公共 MQTT 中继；部分校园网、公司网或运营商可能拦截 WebSocket。</li>
+      <li>NAT 类型严格时 WebRTC 直连可能失败；可尝试换网络、关闭代理/VPN，或让房主重建房间。</li>
+      <li>公共中继是第三方免费服务，可能临时不可用；稍后重试或换时间段。</li>
+      <li>房间号是 4 位；确认朋友输入的是当前房间号，而不是旧房间号。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4. 排行榜不更新 / 看不到我的成绩？</h3>
+    <p>排行榜通过公共 MQTT retained 主题同步，可能延迟或暂时连不上。先点“刷新榜单”；如果仍看不到，检查昵称是否填写、是否完成了整场比赛，以及网络是否能访问公共中继。榜单只保留同一玩家的最高分。</p>
+  </div>
+
+  <div class="card">
+    <h3>5. 怎么删除我的数据？</h3>
+    <ul>
+      <li><b>本地设置/成绩</b>：浏览器清除本站点数据；Windows 应用在“设置 → 应用 → 已安装的应用 → zhuj杯 2026 → 高级选项 → 重置/清除数据”，或卸载。</li>
+      <li><b>公开榜单记录</b>：通过<a href="report.html?type=privacy">举报与申诉页面</a>提交随机玩家 ID、昵称和赛季，我们会向对应 retained 主题发布空消息。我们无法删除其他玩家或第三方已经保存的副本。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>6. 游戏闪退 / 黑屏 / 卡顿？</h3>
+    <ul>
+      <li>更新显卡驱动，确认浏览器或 Windows 已更新。</li>
+      <li>关闭占用 GPU 的程序；在游戏设置里降低画质或关闭夜场。</li>
+      <li>清除站点缓存后重新加载；如果仍失败，请附上设备型号、系统版本、浏览器版本和复现步骤提交 Issue。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>7. 有内购、广告或充值吗？</h3>
+    <p>没有。本游戏免费，不含内购、订阅、广告、抽奖或账号交易。游戏内解锁内容仅在本机生效，不能兑换现金。</p>
+  </div>
+
+  <div class="card">
+    <h3>8. 版权/商标/肖像权问题</h3>
+    <p>本游戏是独立非官方作品，与 FIFA、UEFA、任何联赛、俱乐部、球员、EA、Konami 等无关联。若你认为某项内容侵犯你的权利，请通过<a href="report.html?type=ip">侵权投诉</a>提交权利人、作品/商标名称、登记号或授权链、具体位置和联系方式。我们会核实并处理。</p>
+  </div>
+
+  <div class="card">
+    <h3>9. Microsoft Store 购买/退款</h3>
+    <p>本游戏本身免费。若涉及 Microsoft Store 的账户、支付、退款或安装问题，请通过 Microsoft 账户支持处理；我们无法访问你的支付信息。商店页面上的“退款”入口以 Microsoft 当前政策为准。</p>
+  </div>
+
+  <h2>联系</h2>
+  <div class="card">
+    <ul>
+      <li>GitHub Issues：<a href="https://github.com/windows11stephen/3dfootballgamessmallfishfishVSsmallshrimpshrimp/issues" target="_blank" rel="noopener">提交问题</a>（公开）</li>
+      <li>举报/申诉：<a href="report.html">report.html</a></li>
+      <li>备用邮箱：<a href="mailto:windows11stephen@users.noreply.github.com">windows11stephen@users.noreply.github.com</a></li>
+    </ul>
+    <p class="small">提交问题时请附：设备型号、Windows/浏览器版本、是否联网、复现步骤、截图（不要含个人隐私）。我们通常在 7 个工作日内回复。</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2 id="english">English support summary</h2>
+  <div class="card soft">
+    <p>The game is free, with no in-app purchases, ads, or subscriptions. The web version can be installed as a PWA; the Windows version is distributed via Microsoft Store. Single-player works offline after the first online load; online play and leaderboards require network access to public MQTT/STUN services.</p>
+    <p>If online play fails, check WebSocket access, NAT/firewall settings, and try another network. Leaderboards may be delayed or unavailable when public brokers are down. To delete local data, clear site data or reset/uninstall the Windows app. To request deletion of a public leaderboard entry, use the report page with your random player ID, nickname, and season.</p>
+    <p>Contact: <a href="https://github.com/windows11stephen/3dfootballgamessmallfishfishVSsmallshrimpshrimp/issues" target="_blank" rel="noopener">GitHub Issues</a> · <a href="report.html">report.html</a> · <a href="mailto:windows11stephen@users.noreply.github.com">windows11stephen@users.noreply.github.com</a></p>
+  </div>
+
+  <div class="footer">
+    <p>zhuj杯 2026 · 帮助与支持 v1.0 · 更新 2026-11-28</p>
+    <p><a href="index.html">返回游戏</a> · <a href="privacy.html">隐私政策</a> · <a href="terms.html">用户协议</a> · <a href="code-of-conduct.html">行为准则</a> · <a href="report.html">举报</a></p>
+  </div>
+</div>
+</body>
+</html>

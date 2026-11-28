@@ -6,6 +6,13 @@
    - 单机模式完全不受影响（NET.role 为空时所有钩子直接透传）
    ============================================================ */
 (function(){
+  // 昵称统一清洗：优先复用主脚本的 window.cleanNickname（过滤控制字符、链接、邮箱、长数字串）
+  function cleanNick(raw){
+    if(typeof window.cleanNickname === 'function'){
+      try{ return window.cleanNickname(raw); }catch(_){}
+    }
+    return String(raw==null?'':raw).replace(/[<>&"']/g,'').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,10) || '球员';
+  }
   // ---------------- 最小 MQTT 3.1.1 over WebSocket ----------------
   var ENC = new TextEncoder(), DEC = new TextDecoder();
   function mkPacket(first, parts){
@@ -106,13 +113,21 @@
   // 公网信令候选（只用于房间发现 / 加入握手 / SDP 交换，不承载输入和快照）。
   // 实测公共 broker 的游戏往返都 >100ms，达不到低延迟要求，
   // 所以联机数据只走 WebRTC 直连；这里保留几个最快的只做信令。
-  var BROKERS = [
-    'ws://broker-cn.emqx.io:8083/mqtt',
-    'ws://test.mosquitto.org:8080/mqtt',
+  // HTTPS/PWA 下只能用 wss，ws 会被混合内容策略直接拦截。
+  var BROKERS_HTTPS = [
     'wss://broker-cn.emqx.io:8084/mqtt',
     'wss://test.mosquitto.org:8081/mqtt',
-    'ws://broker.emqx.io:8083/mqtt'
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://mqtt.eclipseprojects.io/mqtt'
   ];
+  var BROKERS_HTTP = [
+    'ws://broker-cn.emqx.io:8083/mqtt',
+    'ws://test.mosquitto.org:8080/mqtt',
+    'ws://broker.emqx.io:8083/mqtt',
+    'ws://broker.hivemq.com:8000/mqtt'
+  ];
+  var BROKERS = (location.protocol === 'https:') ? BROKERS_HTTPS : BROKERS_HTTP;
   var NS = 'zhujcup2026/';
   var NET = window.NET = {
     role: null,            // null | 'host' | 'client' | 'client-wait'
@@ -456,7 +471,8 @@
     if(!p) return;
     p.classList.remove('hidden');
     var nk = el('net-nick');
-    if(nk && !nk.value) nk.value = '球员' + (Math.floor(Math.random()*90) + 10);
+    var nick = cleanNick(nk ? nk.value : '');
+    if(nk) nk.value = nick;
     window.setOnlineMode(mode === 3 ? 3 : 11);
     window.netRefreshRooms();
   };
@@ -517,7 +533,8 @@
   };
   window.netCreateRoom = function(){
     if(NET.role){ setStatus('已在房间中，请先退出'); return; }
-    var nick = ((el('net-nick') && el('net-nick').value) || '').trim().slice(0,10) || '球员';
+    var nick = cleanNick(el('net-nick') && el('net-nick').value);
+    if(el('net-nick')) el('net-nick').value = nick;
     var btn = el('btn-create-room');
     if(btn) btn.disabled = true;
     setStatus('正在连接房间服务器…');
@@ -547,7 +564,8 @@
     if(NET.role){ setStatus('已在房间中，请先退出'); return; }
     var code = ((el('join-code') && el('join-code').value) || '').trim().toUpperCase();
     if(!/^[A-Z0-9]{4}$/.test(code)){ setStatus('请输入 4 位房号', false); return; }
-    var nick = ((el('net-nick') && el('net-nick').value) || '').trim().slice(0,10) || '球员';
+    var nick = cleanNick(el('net-nick') && el('net-nick').value);
+    if(el('net-nick')) el('net-nick').value = nick;
     var btn = el('btn-join-room');
     if(btn) btn.disabled = true;
     setStatus('正在连接房间服务器…');
@@ -687,7 +705,7 @@
       var mm = topic.match(/^zhujcup2026\/([A-Z0-9]{4})\/$/);
       if(mm && NET.role === null && payload && payload.charAt(0) === '{'){
         var code = mm[1], nick = '玩家', ts = 0;
-        try{ var mo = JSON.parse(payload); if(mo.n) nick = mo.n; ts = mo.t || 0; }catch(_){}
+        try{ var mo = JSON.parse(payload); if(mo.n) nick = cleanNick(mo.n); ts = mo.t || 0; }catch(_){}
         var cur = NET.rooms[code] || { n: nick, t: 0, hops: 0 };
         cur.hops = (cur.hops || 0) + 1;
         cur.n = nick;
@@ -715,7 +733,7 @@
       return;
     }
     NET.clientSess = sess;
-    NET.oppNick = (m.n || '对手').toString().slice(0, 10);
+    NET.oppNick = cleanNick(m.n || '对手');
     NET.matchStarted = true;
     NET.remoteTeam = 1 - NET.myTeam;
     G.userTeam = NET.myTeam;
@@ -821,10 +839,13 @@
     if(NET.lastInpRecv && performance.now() - NET.lastInpRecv > 140){
       NET.inp.x = 0; NET.inp.y = 0; NET.inp.sp = 0;
     }
-    // 移动（与玩家操控同一套速度/朝向规则）
-    var spd = NET.inp.sp ? (SPRINT_SPD + USER_SPRINT_BOOST) : WALK_SPD;
+    // 移动（与玩家操控同一套速度/朝向规则；体力不足时只能走路）
+    var canSp = (typeof canPlayerSprint === 'function') ? canPlayerSprint(p) : true;
+    var sprinting = !!NET.inp.sp && canSp;
+    var spd = sprinting ? (SPRINT_SPD + USER_SPRINT_BOOST) : WALK_SPD;
     var len = Math.hypot(NET.inp.x, NET.inp.y);
     if(len > 0.01){
+      if(typeof tickPlayerStamina === 'function') tickPlayerStamina(p, dt, sprinting);
       p.pos.x += NET.inp.x / len * spd * dt;
       p.pos.z += NET.inp.y / len * spd * dt;
       p.facing = Math.atan2(NET.inp.y, NET.inp.x);
@@ -833,6 +854,7 @@
       // 和单机 userMove 的“不操作也自动迎球”一致：传球朝你飞来/球滚到脚边时自动跑过去
       moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
     } else {
+      if(typeof tickPlayerStamina === 'function') tickPlayerStamina(p, dt, false);
       p.velx = 0; p.velz = 0;
     }
     clampPlayer(p);
@@ -1269,7 +1291,10 @@
     var dz = ((keys['KeyS'] || keys['ArrowDown'] || keys['Numpad2']) ? 1 : 0) - ((keys['KeyW'] || keys['ArrowUp'] || keys['Numpad8']) ? 1 : 0);
     var len = Math.hypot(dx, dz);
     if(len > 0.01){
-      var spd = (keys['ShiftLeft'] || keys['ShiftRight']) ? (SPRINT_SPD + USER_SPRINT_BOOST) : WALK_SPD;
+      var wantSprint = (keys['ShiftLeft'] || keys['ShiftRight']) &&
+        ((typeof canPlayerSprint !== 'function') || canPlayerSprint(p));
+      var spd = wantSprint ? (SPRINT_SPD + USER_SPRINT_BOOST) : WALK_SPD;
+      if(typeof tickPlayerStamina === 'function') tickPlayerStamina(p, dt, !!wantSprint);
       p.pos.x += dx/len * spd * dt;
       p.pos.z += dz/len * spd * dt;
       p.facing = Math.atan2(dz, dx);
@@ -1278,6 +1303,7 @@
       // 与单机 userMove 相同：传球朝你飞来 / 球滚到脚边时自动迎球
       if(typeof moveAI === 'function') moveAI(p, {x:ball.pos.x, z:ball.pos.z}, dt, true);
     } else {
+      if(typeof tickPlayerStamina === 'function') tickPlayerStamina(p, dt, false);
       p.velx = 0; p.velz = 0;
     }
     if(typeof clampPlayer === 'function') clampPlayer(p);
@@ -1472,14 +1498,14 @@
   // 榜单多路备份：任意一路连得上就能看榜、上榜，避免被单一中继限流卡死
   var RANK_BROKERS = [
     'wss://broker.hivemq.com:8884/mqtt',
-    'ws://broker.hivemq.com:8000/mqtt',
     'wss://broker.emqx.io:8084/mqtt',
     'wss://broker-cn.emqx.io:8084/mqtt',
     'wss://mqtt.eclipseprojects.io/mqtt',
     'wss://test.mosquitto.org:8081/mqtt',
-    'ws://test.mosquitto.org:8080/mqtt',
-    'wss://broker.mqttdashboard.com:8000/mqtt'
-  ];
+    'wss://broker.mqttdashboard.com:8000/mqtt',
+    'ws://broker.hivemq.com:8000/mqtt',
+    'ws://test.mosquitto.org:8080/mqtt'
+  ].filter(function(u){ return location.protocol !== 'https:' || u.indexOf('wss://') === 0; });
 
   // 年度榜：不再按周清零，避免周一零点榜单突然变空
   function seasonKey(){

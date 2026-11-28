@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zhuj杯 2026 · 排位赛总榜</title>
+<style>
+  :root{
+    --bg:#080d16; --panel:rgba(18,25,40,.92); --line:rgba(120,170,255,.20);
+    --text:#eaf3ff; --dim:#8ea4c3; --gold:#ffd24a; --green:#35e08a; --red:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+    radial-gradient(1100px 600px at 50% -10%, rgba(40,100,190,.22), transparent 70%),
+    linear-gradient(180deg,#0a1220,#05080f 70%);
+    color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;min-height:100vh}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 60px}
+  .top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:28px;letter-spacing:2px;margin:0;color:var(--gold)}
+  .season-badge{font-size:13px;padding:5px 10px;border:1px solid rgba(255,210,74,.45);border-radius:999px;color:var(--gold);background:rgba(255,210,74,.08)}
+  .sub{color:var(--dim);font-size:13px;line-height:1.8;margin:8px 0 18px}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  button,select,input{font:inherit}
+  button{cursor:pointer;border:1px solid rgba(120,170,255,.45);background:rgba(60,120,220,.14);color:#dbeaff;border-radius:10px;padding:9px 14px}
+  button:hover{background:rgba(60,120,220,.28)}
+  button.primary{border-color:rgba(255,210,74,.55);background:rgba(255,210,74,.15);color:var(--gold)}
+  select,input{background:#0d1728;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 12px;outline:none}
+  .status{min-height:20px;color:var(--dim);font-size:12px;margin:6px 0 12px}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;position:relative;overflow:hidden}
+  .card:before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.6}
+  .card .rk{font-size:12px;color:var(--dim)}
+  .card .nm{font-size:20px;font-weight:800;margin:6px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .pts{font-size:26px;font-weight:900;color:var(--gold)}
+  .card .meta{font-size:12px;color:var(--dim);margin-top:4px}
+  .card.p1{border-color:rgba(255,210,74,.55);box-shadow:0 0 32px rgba(255,210,74,.10)}
+  .card.p2{border-color:rgba(190,210,240,.45)}
+  .card.p3{border-color:rgba(220,160,90,.42)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .panel h2{font-size:15px;letter-spacing:1px;margin:0;padding:14px 18px;border-bottom:1px solid var(--line);color:#cfe1ff;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .panel h2 span{font-size:12px;color:var(--dim);font-weight:400}
+  .table{width:100%;border-collapse:collapse}
+  .table th,.table td{padding:11px 14px;text-align:left;border-bottom:1px solid rgba(120,170,255,.09);font-size:13px}
+  .table th{color:var(--dim);font-weight:600;background:rgba(255,255,255,.02);position:sticky;top:0}
+  .table tr:last-child td{border-bottom:0}
+  .table .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .table .rank{width:58px;color:var(--dim)}
+  .table .name{font-weight:700}
+  .table .score{color:var(--gold);font-weight:900}
+  .table .top1 td{background:rgba(255,210,74,.055)}
+  .table .top2 td{background:rgba(190,210,240,.035)}
+  .table .top3 td{background:rgba(220,160,90,.03)}
+  .empty{padding:30px 18px;color:var(--dim);text-align:center;line-height:1.8}
+  .foot{color:#5d708e;font-size:11px;margin-top:18px;line-height:1.8;text-align:center}
+  a{color:#9fc9ff;text-decoration:none}
+  @media(max-width:720px){
+    .wrap{padding:18px 12px 40px}
+    h1{font-size:22px}
+    .cards{grid-template-columns:1fr}
+    .table th,.table td{padding:9px 8px;font-size:12px}
+    .table .rank{width:42px}
+    .table .hide-sm{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>🏅 zhuj杯 · 排位赛总榜</h1>
+    <span class="season-badge" id="seasonBadge">2026 赛季</span>
+  </div>
+  <div class="sub">所有玩家的最高成绩按总分从高到低排列。同一昵称或同一玩家 ID 多场成绩自动合并，只保留最高分；前三名单独展示。</div>
+  <div class="toolbar">
+    <button class="primary" id="refreshBtn">🔄 刷新总榜</button>
+    <select id="seasonSelect" title="赛季">
+      <option value="2026">2026 赛季</option>
+      <option value="all">全部赛季</option>
+    </select>
+    <input id="q" placeholder="搜索昵称…" style="width:170px">
+    <a href="index.html" style="margin-left:auto;font-size:12px">← 返回游戏</a>
+  </div>
+  <div class="status" id="status">正在连接公共中继…</div>
+  <div class="cards" id="cards"></div>
+  <div class="panel">
+    <h2>全部排名 <span id="count">0 人</span></h2>
+    <div id="listBox"><div class="empty">正在读取榜单…</div></div>
+  </div>
+  <div class="foot">
+    数据来自公共 MQTT retained 主题 · 纯静态页面，无需后端 · 每 20 秒自动刷新<br>
+    如果公共中继暂时不可达，会优先显示本机缓存中的最高分。<br>
+    <span style="display:inline-block;margin-top:8px">
+      <a href="terms.html">用户协议</a> ·
+      <a href="privacy.html">隐私政策</a> ·
+      <a href="code-of-conduct.html">行为准则</a> ·
+      <a href="report.html?type=online">举报与申诉</a> ·
+      <a href="support.html">帮助</a>
+    </span><br>
+    <span style="color:#7f8ea8">排行榜昵称公开；请勿使用真实姓名、学校、住址或联系方式。</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var NS = 'zhujcup2026/rank/';
+  var BROKERS = [
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker-cn.emqx.io:8084/mqtt',
+    'wss://mqtt.eclipseprojects.io/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt',
+    'wss://broker.mqttdashboard.com:8000/mqtt'
+  ];
+  var currentSeason = String(new Date().getFullYear());
+  var seasonMode = '2026';
+  var entries = {};
+  var clients = [];
+  var refreshing = false;
+  var finishTimer = 0;
+  var lastRefreshAt = 0;
+  var lastBrokerCount = 0;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[<>&"]/g,function(c){return c==='<'?'&lt;':c==='>'?'&gt;':c==='&'?'&amp;':'&quot;';}); }
+  function fmtDate(t){
+    if(!t) return '—';
+    try{ return new Date(t).toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(_){ return '—'; }
+  }
+  function seasonOf(x){ return String(x && x.s || ''); }
+
+  // ---------- 最小 MQTT over WebSocket 客户端 ----------
+  var ENC = new TextEncoder(), DEC = new TextDecoder();
+  function strBytes(s){ var a=ENC.encode(s), l=new Uint8Array(2); l[0]=(a.length>>8)&255; l[1]=a.length&255; return [l,a]; }
+  function encVarLen(n){
+    var out=[];
+    do{ var d=n&127; n>>=7; if(n) d|=128; out.push(d); }while(n);
+    return new Uint8Array(out);
+  }
+  function mkPacket(header, parts){
+    var body=[]; for(var i=0;i<parts.length;i++) body.push(parts[i]);
+    var len=0; for(var j=0;j<body.length;j++) len+=body[j].length;
+    var head=new Uint8Array([header]); var l=encVarLen(len);
+    var all=new Uint8Array(1+l.length+len); all.set(head,0); all.set(l,1);
+    var off=1+l.length; for(var k=0;k<body.length;k++){ all.set(body[k],off); off+=body[k].length; }
+    return all;
+  }
+  function MiniMQTT(url, clientId){
+    this.url=url; this.clientId=clientId; this.ws=null; this.buf=new Uint8Array(0);
+    this.connected=false; this.onmsg=null; this.pid=1;
+  }
+  MiniMQTT.prototype.connect=function(timeoutMs){
+    var self=this;
+    return new Promise(function(resolve,reject){
+      var settled=false, ws;
+      try{ ws=new WebSocket(self.url,['mqtt']); }catch(e){ return reject(e); }
+      self.ws=ws; ws.binaryType='arraybuffer';
+      var timer=setTimeout(function(){ if(!settled){ settled=true; try{ws.close();}catch(_){}; reject(new Error('连接超时')); } },timeoutMs||8000);
+      ws.onopen=function(){
+        var id=strBytes(self.clientId);
+        ws.send(mkPacket(0x10,[new Uint8Array([0,4]),ENC.encode('MQTT'),new Uint8Array([4,2,0,0x3C]),id]));
+      };
+      ws.onerror=function(){};
+      ws.onclose=function(){ clearTimeout(timer); self.connected=false; if(!settled){ settled=true; reject(new Error('WebSocket 已关闭')); } };
+      ws.onmessage=function(ev){
+        if(!(ev.data instanceof ArrayBuffer)) return;
+        self._feed(new Uint8Array(ev.data),function(){
+          if(!settled){ settled=true; clearTimeout(timer); self.connected=true; resolve(self); }
+        });
+      };
+    });
+  };
+  MiniMQTT.prototype._feed=function(bytes,onConnack){
+    var merged=new Uint8Array(this.buf.length+bytes.length);
+    merged.set(this.buf,0); merged.set(bytes,this.buf.length);
+    var buf=merged;
+    while(buf.length>=2){
+      var len=0,mul=1,i=1,ok=false;
+      while(i<buf.length){
+        var d=buf[i++]; len+=(d&127)*mul; mul*=128;
+        if((d&128)===0){ ok=true; break; }
+        if(mul>1e7) break;
+      }
+      if(!ok) break;
+      var headerEnd=i,total=headerEnd+len;
+      if(buf.length<total) break;
+      var first=buf[0],body=buf.subarray(headerEnd,total);
+      buf=buf.subarray(total);
+      if(first===0x20){ if(onConnack) onConnack(); continue; }
+      if(first===0x90 || first===0xD0) continue;
+      if((first&0xF0)===0x30){
+        var off=((first&0x06)!==0)?2:0;
+        if(body.length<off+2) continue;
+        var tl=(body[off]<<8)|body[off+1];
+        var topic=DEC.decode(body.subarray(off+2,off+2+tl));
+        var payload=DEC.decode(body.subarray(off+2+tl));
+        if(this.onmsg) this.onmsg(topic,payload);
+      }
+    }
+    this.buf=buf;
+  };
+  MiniMQTT.prototype.subscribe=function(topic){
+    var pid=(this.pid++ & 0xFFFF)||1;
+    try{ this.ws.send(mkPacket(0x82,[new Uint8Array([(pid>>8)&255,pid&255]),strBytes(topic)[0],strBytes(topic)[1],new Uint8Array([0])])); }catch(_){}
+  };
+  MiniMQTT.prototype.close=function(){ try{ this.ws.close(); }catch(_){} };
+
+  // ---------- 榜单 ----------
+  function parseEntry(topic,payload){
+    try{
+      var o=JSON.parse(payload); if(!o || !o.id || typeof o.p!=='number' || !isFinite(o.p)) return null;
+      o.p=Math.max(0,Math.min(9999,Math.round(o.p)));
+      o.g=Math.max(0,Math.min(99,+o.g||0)); o.c=Math.max(0,Math.min(99,+o.c||0));
+      o.n=String(o.n||'匿名').slice(0,10); o.t=+o.t||0;
+      o.s=String(o.s||currentSeason);
+      return o;
+    }catch(_){ return null; }
+  }
+  function addEntry(o){
+    if(!o) return;
+    if(seasonMode!=='all' && seasonOf(o)!==currentSeason) return;
+    var key=o.id;
+    if(!entries[key] || o.p>entries[key].p || (o.p===entries[key].p && o.g>entries[key].g)) entries[key]=o;
+  }
+  function readLocal(){
+    try{
+      var a=JSON.parse(localStorage.getItem('zhuj_rank_local_v1')||'[]');
+      if(Array.isArray(a)) a.forEach(addEntry);
+    }catch(_){}
+  }
+  function merge(){
+    var arr=Object.keys(entries).map(function(k){return entries[k];});
+    if(!arr.length) return [];
+    // 同一昵称或同一玩家 ID 多场成绩合并，取最高分
+    var parent=arr.map(function(_,i){return i;});
+    function find(i){ while(parent[i]!==i){ parent[i]=parent[parent[i]]; i=parent[i]; } return i; }
+    function uni(i,j){ i=find(i); j=find(j); if(i!==j) parent[j]=i; }
+    var idAt={}, nameAt={};
+    arr.forEach(function(x,i){
+      if(idAt[x.id]!==undefined) uni(i,idAt[x.id]); else idAt[x.id]=i;
+      var nm=String(x.n||'').trim().toLowerCase();
+      if(nm && nm!=='匿名'){ if(nameAt[nm]!==undefined) uni(i,nameAt[nm]); else nameAt[nm]=i; }
+    });
+    var groups={};
+    arr.forEach(function(x,i){
+      var r=find(i), g=groups[r];
+      if(!g){ groups[r]={id:x.id,n:x.n,p:x.p,g:x.g,c:x.c,s:x.s,t:x.t,ids:[x.id]}; return; }
+      if(g.ids.indexOf(x.id)<0) g.ids.push(x.id);
+      if(x.p>g.p || (x.p===g.p && x.g>g.g)){
+        g.id=x.id; g.n=x.n; g.p=x.p; g.g=x.g; g.c=x.c; g.s=x.s; g.t=x.t;
+      }
+    });
+    return Object.keys(groups).map(function(k){return groups[k];}).sort(function(a,b){
+      return (b.p-a.p) || (b.g-a.g) || ((a.t||0)-(b.t||0));
+    });
+  }
+  function render(){
+    var list=merge();
+    var cards=$('cards'), box=$('listBox'), count=$('count');
+    if(count) count.textContent=list.length+' 人';
+    if(!list.length){
+      cards.innerHTML='';
+      box.innerHTML='<div class="empty">还没有成绩。<br>打开游戏 →「排位赛」打一场，结算时就会自动上传。</div>';
+      return;
+    }
+    var medals=['🥇','🥈','🥉'];
+    var top=list.slice(0,3);
+    cards.innerHTML=top.map(function(x,i){
+      return '<div class="card p'+(i+1)+'"><div class="rk">'+medals[i]+' 第 '+(i+1)+' 名</div>'+
+        '<div class="nm">'+esc(x.n)+'</div><div class="pts">'+x.p+' <span style="font-size:12px;color:var(--dim)">分</span></div>'+
+        '<div class="meta">进球 '+x.g+' · 失球 '+x.c+' · '+fmtDate(x.t)+'</div></div>';
+    }).join('');
+    var q=($('q')&&$('q').value||'').trim().toLowerCase();
+    var rows=list.filter(function(x){ return !q || String(x.n).toLowerCase().indexOf(q)>=0; });
+    var html='<div style="overflow:auto;max-height:60vh"><table class="table"><thead><tr>'+
+      '<th class="rank">排名</th><th>昵称</th><th class="num">总分</th><th class="num hide-sm">进球</th><th class="num hide-sm">失球</th><th class="hide-sm">时间</th></tr></thead><tbody>';
+    rows.forEach(function(x,i){
+      var idx=list.indexOf(x);
+      var cls=idx===0?'top1':idx===1?'top2':idx===2?'top3':'';
+      html+='<tr class="'+cls+'"><td class="rank">'+(idx<3?medals[idx]:('#'+(idx+1)))+'</td>'+
+        '<td class="name">'+esc(x.n)+'</td><td class="num score">'+x.p+'</td>'+
+        '<td class="num hide-sm">'+x.g+'</td><td class="num hide-sm">'+x.c+'</td>'+
+        '<td class="hide-sm" style="color:#7f92ad">'+fmtDate(x.t)+'</td></tr>';
+    });
+    html+='</tbody></table></div>';
+    box.innerHTML=html;
+  }
+  function status(t,tone){ var e=$('status'); if(e){ e.textContent=t; e.style.color=tone==='bad'?'#ff9d9d':tone==='ok'?'#9fe6ff':'#8ea4c3'; } }
+  function closeAll(){ clients.forEach(function(m){ try{m.close();}catch(_){} }); clients=[]; }
+
+  function refresh(){
+    if(refreshing) return;
+    refreshing=true; entries={}; closeAll(); readLocal();
+    // 主题格式：zhujcup2026/rank/<赛季>/<玩家ID>
+    // 当前赛季只订阅本季；全部赛季用 + 通配赛季段。
+    var filter = NS + (seasonMode==='all' ? '+/+' : (currentSeason + '/+'));
+    var got=0;
+    status('正在连接公共中继…');
+    function finish(){
+      if(!refreshing) return;
+      refreshing=false; clearTimeout(finishTimer); finishTimer=0;
+      render();
+      var n=merge().length;
+      if(got>0) status('已连接 '+got+' 个中继 · 共 '+n+' 人上榜 · 更新于 '+new Date().toLocaleTimeString('zh-CN'),'ok');
+      else status('公共中继暂时连不上 · 显示本机缓存 '+n+' 人','bad');
+      lastRefreshAt=Date.now();
+    }
+    finishTimer=setTimeout(finish,9000);
+    BROKERS.forEach(function(url){
+      var mq=new MiniMQTT(url,'zhujr_'+Math.random().toString(36).slice(2,9));
+      mq.onmsg=function(topic,payload){ var o=parseEntry(topic,payload); if(o){ addEntry(o); render(); } };
+      mq.connect(6500).then(function(){
+        clients.push(mq); got++;
+        try{ mq.subscribe(filter); }catch(_){}
+      }).catch(function(){ try{mq.close();}catch(_){} });
+    });
+    setTimeout(function(){ if(got) status('已连接 '+got+' 个中继 · 正在收榜…'); },1000);
+  }
+
+  $('refreshBtn').onclick=refresh;
+  $('seasonSelect').onchange=function(){ seasonMode=this.value; $('seasonBadge').textContent=(seasonMode==='all'?'全部赛季':seasonMode+' 赛季'); refresh(); };
+  $('q').oninput=function(){ render(); };
+  window.addEventListener('beforeunload',closeAll);
+  refresh();
+  setInterval(function(){ if(Date.now()-lastRefreshAt>20000) refresh(); },5000);
+})();
+</script>
+</body>
+</html>
